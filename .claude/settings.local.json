@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x \"/Users/armandogonzalez/Documents/Claude/Deep Research Claude Code/06-Portfolio-AI-Agents/scripts/dev.sh\" \"/Users/armandogonzalez/Documents/Claude/Deep Research Claude Code/06-Portfolio-AI-Agents/scripts/pull-models.sh\")",
+      "Bash(python3 -c \":*)"
+    ]
+  }
+}

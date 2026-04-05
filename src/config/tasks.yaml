@@ -1,0 +1,47 @@
+research:
+  description: >
+    Research the following topic thoroughly: {topic}
+
+    Gather information from web searches and internal documents.
+    Include relevant data, statistics, and expert opinions.
+    Note the sources of your information.
+  agent: researcher
+  expected_output: >
+    A comprehensive research summary with key findings, supporting
+    data points, and source references.
+
+analysis:
+  description: >
+    Analyze the research findings and extract key insights.
+
+    Identify patterns, trends, and significant data points.
+    Compare different perspectives and highlight areas of consensus
+    and disagreement. Provide data-driven conclusions.
+  agent: analyst
+  expected_output: >
+    Structured analysis with key patterns, trends, actionable insights,
+    and data-driven conclusions.
+
+writing:
+  description: >
+    Create a professional report based on the research and analysis.
+
+    Structure the content with clear sections, use engaging language,
+    and ensure the report is accessible to the target audience.
+    Include an executive summary and recommendations.
+  agent: writer
+  expected_output: >
+    Well-structured written report with executive summary, detailed
+    findings, analysis, and clear recommendations.
+
+validation:
+  description: >
+    Review the complete report for quality assurance.
+
+    Check for factual accuracy, logical consistency, completeness,
+    grammar, and overall quality. Provide specific feedback and
+    corrections where needed.
+  agent: validator
+  expected_output: >
+    Quality assessment with specific corrections, improvement
+    suggestions, and a final quality score (1-10).

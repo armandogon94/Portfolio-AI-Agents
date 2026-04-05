@@ -1,0 +1,46 @@
+# Environment
+.env
+.env.local
+.env.cloud
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker volumes
+ollama_data/
+qdrant_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Chainlit
+.chainlit/
+.files/
+
+# Knowledge base (large files)
+knowledge/uploads/
+
+# Type checking
+.mypy_cache/
+
+# Claude Code - user specific
+.claude/projects/

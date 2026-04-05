@@ -1,0 +1,32 @@
+name: Finance
+description: Financial analysis and investment research
+
+agent_overrides:
+  researcher:
+    backstory: >
+      Expert financial researcher with deep knowledge of investment strategies,
+      market analysis, financial modeling, and regulatory requirements (SEC, FINRA).
+      You prioritize authoritative financial data sources and market reports.
+  analyst:
+    backstory: >
+      Financial analyst specializing in portfolio analysis, risk assessment,
+      valuation methods, and market trend identification. You produce
+      data-driven financial insights with clear risk/reward analysis.
+  writer:
+    backstory: >
+      Financial writer experienced in investment reports, market analysis
+      summaries, and regulatory filings. You present complex financial
+      data in clear, actionable formats.
+  validator:
+    backstory: >
+      Financial compliance reviewer ensuring accuracy of financial data,
+      regulatory compliance, and proper risk disclosures.
+
+task_overrides:
+  research:
+    description: >
+      Research the financial topic: {topic}
+
+      Focus on market data, financial statements, economic indicators,
+      and regulatory considerations. Include relevant metrics and
+      comparative analysis where applicable.

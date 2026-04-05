@@ -1,0 +1,56 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  agents-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agents-api
+    depends_on:
+      - qdrant
+    environment:
+      LLM_PROVIDER: anthropic
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      EMBEDDING_MODE: local
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      QDRANT_COLLECTION: documents
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.agents.rule=Host(`agents.305-ai.com`)"
+      - "traefik.http.routers.agents.entrypoints=websecure"
+      - "traefik.http.routers.agents.tls.certresolver=letsencrypt"
+      - "traefik.http.services.agents.loadbalancer.server.port=8000"
+
+volumes:
+  qdrant_data:
+
+networks:
+  backend:
+  frontend:

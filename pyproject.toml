@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-agent-system"
+version = "1.0.0"
+description = "Production-ready multi-agent system with CrewAI, Chainlit, and Qdrant RAG"
+requires-python = ">=3.12"
+dependencies = [
+    # Agent framework
+    "crewai[tools]>=0.30.0",
+    # Chat UI
+    "chainlit>=1.0.0",
+    # Web framework
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    # Vector database
+    "qdrant-client>=1.7.0",
+    # Embeddings
+    "fastembed>=0.2.0",
+    # LLM providers
+    "langchain-anthropic>=0.1.0",
+    "langchain-ollama>=0.1.0",
+    "langchain-community>=0.0.20",
+    # Search
+    "duckduckgo-search>=4.0",
+    # Configuration
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    # Utilities
+    "pyyaml>=6.0",
+    "httpx>=0.25.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+]
+
+# Run commands directly:
+#   uvicorn src.main:app --host 0.0.0.0 --port 8060 --reload
+#   chainlit run src/chainlit_app.py --port 3060
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: Unit tests (fast, mocked)",
+    "integration: Integration tests (local services required)",
+    "slow: Slow tests (actual LLM calls)",
+]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
