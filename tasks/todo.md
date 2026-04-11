@@ -16,9 +16,9 @@
 ## Phase 2: Core Infrastructure
 
 ### Slice 2: Error Handling + DI
-- [ ] **2.1** RED — Write failing tests for exceptions and DI (`test_exceptions.py`, `test_dependencies.py`)
-- [ ] **2.2** GREEN — Implement `src/exceptions.py`, exception handlers, Qdrant DI via Depends()
-- [ ] **2.3** REFACTOR — Clean up, verify no bare `str(e)` remains
+- [x] **2.1** RED — Write failing tests for exceptions and DI (`test_exceptions.py`, `test_dependencies.py`)
+- [x] **2.2** GREEN — Implement `src/exceptions.py`, exception handlers, Qdrant DI via Depends()
+- [x] **2.3** REFACTOR — Clean up, verify no bare `str(e)` remains
 
 ### Slice 3: Structured Logging
 - [ ] **3.1** RED — Write failing tests for JSON logging and request ID (`test_logging.py`)
@@ -91,7 +91,7 @@
 
 | Slice | Commit Message | SHA |
 |-------|---------------|-----|
-| 1 | `feat(slice-1): add Makefile and dependency lock files` | |
+| 1 | `feat(slice-1): add Makefile, uv venv, and dependency lock` | c1fe064 |
 | 2 | `feat(slice-2): custom exceptions and Qdrant DI` | |
 | 3 | `feat(slice-3): structured JSON logging and request ID` | |
 | 4 | `feat(slice-4): API key authentication` | |

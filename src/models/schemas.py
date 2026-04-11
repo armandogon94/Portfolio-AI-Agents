@@ -43,3 +43,9 @@ class SearchResponse(BaseModel):
     query: str
     results: list[dict]
     count: int
+
+
+class ErrorResponse(BaseModel):
+    error: str
+    detail: str
+    status_code: int
