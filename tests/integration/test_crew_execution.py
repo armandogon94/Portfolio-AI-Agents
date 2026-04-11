@@ -49,7 +49,7 @@ class TestCrewExecution:
 
                     from src.crew import build_crew
 
-                    crew = build_crew(domain="healthcare")
+                    build_crew(domain="healthcare")
                     MockAgentFactory.assert_called_with(domain="healthcare")
 
 

@@ -50,12 +50,17 @@ class TestAgentFactory:
 
     def test_agent_factory_creates_agents(self):
         """AgentFactory.create_all returns all configured agents."""
-        with patch("src.agents.factory.LLMFactory") as MockFactory:
-            MockFactory.create.return_value = MagicMock()
+        from crewai.tools import BaseTool
 
-            # Mock tool registry
+        with patch("src.agents.factory.LLMFactory") as MockFactory:
+            MockFactory.create.return_value = "ollama/mistral"
+
+            # Mock tool registry — must return BaseTool-compatible mocks
             with patch("src.agents.factory.ToolRegistry") as MockRegistry:
-                MockRegistry.get.return_value = MagicMock()
+                mock_tool = MagicMock(spec=BaseTool)
+                mock_tool.name = "mock_tool"
+                mock_tool.description = "A mock tool"
+                MockRegistry.get.return_value = mock_tool
 
                 from src.agents.factory import AgentFactory
 

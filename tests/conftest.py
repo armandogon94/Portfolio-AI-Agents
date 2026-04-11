@@ -1,6 +1,6 @@
 import os
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 # Force local/test settings before importing anything
 os.environ.setdefault("LLM_PROVIDER", "ollama")

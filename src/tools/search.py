@@ -1,5 +1,4 @@
 from crewai.tools import BaseTool
-from pydantic import Field
 from src.tools.registry import register_tool
 
 
