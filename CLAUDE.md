@@ -1,5 +1,7 @@
 # AI Agent System - CrewAI Multi-Agent Framework
 
+> **Port allocation:** See [PORTS.md](PORTS.md) before changing any docker-compose ports. All ports outside the assigned ranges are taken by other projects.
+
 ## Project Overview
 Production-ready multi-agent system with CrewAI, Chainlit UI, Qdrant vector DB, and RAG.
 Deploys to `agents.305-ai.com`. Supports local development with Ollama and cloud deployment with Anthropic API.
