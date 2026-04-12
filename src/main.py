@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from src.config.settings import settings
 from src.exceptions import AppError
 from src.dependencies import get_qdrant_repo
+from src.middleware.auth import ApiKeyMiddleware
 from src.middleware.request_id import RequestIdMiddleware
 from src.utils.logger import setup_logging
 from src.models.schemas import (
@@ -52,6 +53,7 @@ app = FastAPI(
 )
 
 app.add_middleware(RequestIdMiddleware)
+app.add_middleware(ApiKeyMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

@@ -33,9 +33,9 @@
 ## Phase 3: Security
 
 ### Slice 4: API Key Auth
-- [ ] **4.1** RED — Write 7 failing auth tests (`test_auth.py`)
-- [ ] **4.2** GREEN — Implement `src/middleware/auth.py`, add `api_key` to Settings
-- [ ] **4.3** REFACTOR — Verify 401 uses ErrorResponse, run full suite
+- [x] **4.1** RED — Write 7 failing auth tests (`test_auth.py`)
+- [x] **4.2** GREEN — Implement `src/middleware/auth.py`, add `api_key` to Settings
+- [x] **4.3** REFACTOR — Verify 401 uses ErrorResponse, run full suite
 
 ### Slice 5: Rate Limiting + CORS
 - [ ] **5.1** RED — Write failing rate limit and CORS tests (`test_rate_limiting.py`, `test_cors.py`)
@@ -93,7 +93,7 @@
 |-------|---------------|-----|
 | 1 | `feat(slice-1): add Makefile, uv venv, and dependency lock` | c1fe064 |
 | 2 | `feat(slice-2): custom exceptions and Qdrant DI` | 3bb1591 |
-| 3 | `feat(slice-3): structured JSON logging and request ID` | |
+| 3 | `feat(slice-3): structured JSON logging and request ID` | 973f1d7 |
 | 4 | `feat(slice-4): API key authentication` | |
 | 5 | `feat(slice-5): rate limiting and CORS hardening` | |
 | 6 | `feat(slice-6): async crew execution with task polling` | |

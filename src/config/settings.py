@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     qdrant_port: int = 6333
     qdrant_collection: str = "documents"
 
+    # Security
+    api_key: Optional[str] = None
+
     # Application
     environment: Environment = Environment.DEVELOPMENT
     log_level: str = "INFO"
