@@ -50,9 +50,9 @@
 ## Phase 4: Async Execution
 
 ### Slice 6: Async Crew Execution
-- [ ] **6.1** RED — Write failing tests for TaskStore and async endpoints (`test_task_store.py`, `test_async_crew.py`)
-- [ ] **6.2** GREEN — Implement `src/services/task_store.py`, refactor `/crew/run` to 202 + BackgroundTasks, add `/crew/status/{task_id}`
-- [ ] **6.3** REFACTOR — Verify Chainlit unaffected, TaskStore TTL cleanup
+- [x] **6.1** RED — Write failing tests for TaskStore and async endpoints (`test_task_store.py`, `test_async_crew.py`)
+- [x] **6.2** GREEN — Implement `src/services/task_store.py`, refactor `/crew/run` to 202 + BackgroundTasks, add `/crew/status/{task_id}`
+- [x] **6.3** REFACTOR — Verify Chainlit unaffected, TaskStore TTL cleanup
 
 ### Checkpoint: Async Execution
 - [ ] POST /crew/run -> 202, GET /crew/status/{id} works, Chainlit unchanged
@@ -95,7 +95,7 @@
 | 2 | `feat(slice-2): custom exceptions and Qdrant DI` | 3bb1591 |
 | 3 | `feat(slice-3): structured JSON logging and request ID` | 973f1d7 |
 | 4 | `feat(slice-4): API key authentication` | 273f6dc |
-| 5 | `feat(slice-5): rate limiting and CORS hardening` | |
+| 5 | `feat(slice-5): rate limiting and CORS hardening` | 7e60946 |
 | 6 | `feat(slice-6): async crew execution with task polling` | |
 | 7 | `feat(slice-7): multi-stage Docker with health checks` | |
 | 8 | `feat(slice-8): GitHub Actions CI/CD pipeline` | |

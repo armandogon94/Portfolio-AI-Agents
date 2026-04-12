@@ -61,30 +61,33 @@ class TestExceptionHandlers:
     @pytest.fixture
     def client(self):
         from src.main import app
+        from src.dependencies import get_qdrant_repo
+        from unittest.mock import MagicMock
 
-        return TestClient(app, raise_server_exceptions=False)
+        mock_repo = MagicMock()
+        app.dependency_overrides[get_qdrant_repo] = lambda: mock_repo
+        client = TestClient(app, raise_server_exceptions=False)
+        yield client, mock_repo
+        app.dependency_overrides.clear()
 
     def test_not_found_returns_404_json(self, client):
-        """A NotFoundError raised in a handler returns 404 with ErrorResponse body."""
-        from src.exceptions import NotFoundError
-
-        with patch("src.crew.run_crew") as mock_run:
-            mock_run.side_effect = NotFoundError("topic not found")
-            resp = client.post("/crew/run", json={"topic": "test"})
-
+        """NotFoundError returns 404 with ErrorResponse body (via /crew/status)."""
+        c, _ = client
+        resp = c.get("/crew/status/nonexistent-task-id")
         assert resp.status_code == 404
         body = resp.json()
         assert body["error"] == "NotFoundError"
-        assert body["detail"] == "topic not found"
         assert body["status_code"] == 404
 
     def test_service_unavailable_returns_503_json(self, client):
-        """A ServiceUnavailableError returns 503 with ErrorResponse body."""
+        """ServiceUnavailableError returns 503 with ErrorResponse body."""
         from src.exceptions import ServiceUnavailableError
 
-        with patch("src.crew.run_crew") as mock_run:
-            mock_run.side_effect = ServiceUnavailableError("Qdrant unreachable")
-            resp = client.post("/crew/run", json={"topic": "test"})
+        c, mock_repo = client
+        mock_repo.search.side_effect = ServiceUnavailableError("Qdrant unreachable")
+        with patch("src.middleware.auth.settings") as auth_s:
+            auth_s.api_key = None
+            resp = c.post("/documents/search", json={"query": "test"})
 
         assert resp.status_code == 503
         body = resp.json()
@@ -92,12 +95,17 @@ class TestExceptionHandlers:
         assert body["status_code"] == 503
 
     def test_crew_execution_error_returns_500_json(self, client):
-        """A CrewExecutionError returns 500 with structured error body."""
+        """CrewExecutionError returns 500 with structured error body."""
         from src.exceptions import CrewExecutionError
 
-        with patch("src.crew.run_crew") as mock_run:
-            mock_run.side_effect = CrewExecutionError("agent loop failed")
-            resp = client.post("/crew/run", json={"topic": "test"})
+        c, mock_repo = client
+        mock_repo.add.side_effect = CrewExecutionError("agent loop failed")
+        with patch("src.middleware.auth.settings") as auth_s:
+            auth_s.api_key = None
+            resp = c.post(
+                "/documents/ingest",
+                json={"doc_id": "d1", "content": "test"},
+            )
 
         assert resp.status_code == 500
         body = resp.json()
@@ -106,9 +114,11 @@ class TestExceptionHandlers:
 
     def test_unhandled_exception_returns_500_json(self, client):
         """An unexpected exception still returns structured ErrorResponse."""
-        with patch("src.crew.run_crew") as mock_run:
-            mock_run.side_effect = RuntimeError("unexpected")
-            resp = client.post("/crew/run", json={"topic": "test"})
+        c, mock_repo = client
+        mock_repo.search.side_effect = RuntimeError("unexpected")
+        with patch("src.middleware.auth.settings") as auth_s:
+            auth_s.api_key = None
+            resp = c.post("/documents/search", json={"query": "test"})
 
         assert resp.status_code == 500
         body = resp.json()

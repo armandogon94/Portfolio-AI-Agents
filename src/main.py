@@ -1,6 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, Request
+from fastapi import BackgroundTasks, FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -8,19 +8,21 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from src.config.settings import settings
-from src.exceptions import AppError
+from src.exceptions import AppError, NotFoundError
+from src.services.task_store import TaskStore
 from src.dependencies import get_qdrant_repo
 from src.middleware.auth import ApiKeyMiddleware
 from src.middleware.request_id import RequestIdMiddleware
 from src.utils.logger import setup_logging
 from src.models.schemas import (
+    CrewAsyncResponse,
     CrewRequest,
-    CrewResponse,
     HealthResponse,
     IngestRequest,
     IngestResponse,
     SearchRequest,
     SearchResponse,
+    TaskStatusResponse,
 )
 
 setup_logging()
@@ -28,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 # Rate limiter (DEC-03)
 limiter = Limiter(key_func=get_remote_address)
+
+# Task store for async execution (DEC-02)
+task_store = TaskStore()
 
 
 @asynccontextmanager
@@ -111,15 +116,36 @@ async def health():
     )
 
 
-@app.post("/crew/run", response_model=CrewResponse)
-@limiter.limit("5/minute")
-async def run_crew(request: Request, body: CrewRequest):
-    """Execute the multi-agent crew on a topic."""
-    from src.crew import run_crew
+def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
+    """Background task that runs the crew and updates the task store."""
+    try:
+        from src.crew import run_crew
 
-    logger.info(f"Running crew: topic='{body.topic}', domain={body.domain}")
-    result = run_crew(topic=body.topic, domain=body.domain)
-    return CrewResponse(topic=body.topic, domain=body.domain, result=result)
+        task_store.update(task_id, status="running")
+        result = run_crew(topic=topic, domain=domain)
+        task_store.update(task_id, status="completed", result=result)
+    except Exception as e:
+        logger.error(f"Crew task {task_id} failed: {e}")
+        task_store.update(task_id, status="failed", result=str(e))
+
+
+@app.post("/crew/run", response_model=CrewAsyncResponse, status_code=202)
+@limiter.limit("5/minute")
+async def run_crew_async(request: Request, body: CrewRequest, background_tasks: BackgroundTasks):
+    """Submit a crew execution job. Returns 202 with task_id for polling."""
+    logger.info(f"Queuing crew: topic='{body.topic}', domain={body.domain}")
+    task_id = task_store.create(topic=body.topic, domain=body.domain)
+    background_tasks.add_task(_execute_crew, task_id, body.topic, body.domain)
+    return CrewAsyncResponse(task_id=task_id)
+
+
+@app.get("/crew/status/{task_id}", response_model=TaskStatusResponse)
+async def crew_status(task_id: str):
+    """Poll the status of a crew execution task."""
+    task = task_store.get(task_id)
+    if task is None:
+        raise NotFoundError(f"Task '{task_id}' not found")
+    return TaskStatusResponse(**task)
 
 
 @app.post("/documents/ingest", response_model=IngestResponse)

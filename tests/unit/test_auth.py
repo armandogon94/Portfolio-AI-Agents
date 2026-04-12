@@ -56,14 +56,13 @@ class TestApiKeyAuth:
         assert resp.status_code == 401
 
     def test_crew_run_with_valid_key(self, client_with_key):
-        """POST /crew/run with correct key is allowed."""
-        with patch("src.crew.run_crew", return_value="result"):
-            resp = client_with_key.post(
-                "/crew/run",
-                json={"topic": "test"},
-                headers={"X-API-Key": "test-secret-key"},
-            )
-        assert resp.status_code == 200
+        """POST /crew/run with correct key is allowed (returns 202 async)."""
+        resp = client_with_key.post(
+            "/crew/run",
+            json={"topic": "test"},
+            headers={"X-API-Key": "test-secret-key"},
+        )
+        assert resp.status_code == 202
 
     def test_crew_run_with_invalid_key(self, client_with_key):
         """POST /crew/run with wrong key returns 401."""

@@ -45,6 +45,19 @@ class SearchResponse(BaseModel):
     count: int
 
 
+class CrewAsyncResponse(BaseModel):
+    task_id: str
+    status: str = "pending"
+
+
+class TaskStatusResponse(BaseModel):
+    task_id: str
+    topic: str
+    domain: str | None
+    status: str
+    result: str | None
+
+
 class ErrorResponse(BaseModel):
     error: str
     detail: str
