@@ -33,6 +33,8 @@ dependencies = [
     "httpx>=0.25.0",
     # Logging
     "python-json-logger>=2.0.0",
+    # Rate limiting
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

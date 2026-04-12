@@ -3,6 +3,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from src.config.settings import settings
 from src.exceptions import AppError
@@ -22,6 +25,9 @@ from src.models.schemas import (
 
 setup_logging()
 logger = logging.getLogger(__name__)
+
+# Rate limiter (DEC-03)
+limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -51,12 +57,14 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan,
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(ApiKeyMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -104,34 +112,39 @@ async def health():
 
 
 @app.post("/crew/run", response_model=CrewResponse)
-async def run_crew(request: CrewRequest):
+@limiter.limit("5/minute")
+async def run_crew(request: Request, body: CrewRequest):
     """Execute the multi-agent crew on a topic."""
     from src.crew import run_crew
 
-    logger.info(f"Running crew: topic='{request.topic}', domain={request.domain}")
-    result = run_crew(topic=request.topic, domain=request.domain)
-    return CrewResponse(topic=request.topic, domain=request.domain, result=result)
+    logger.info(f"Running crew: topic='{body.topic}', domain={body.domain}")
+    result = run_crew(topic=body.topic, domain=body.domain)
+    return CrewResponse(topic=body.topic, domain=body.domain, result=result)
 
 
 @app.post("/documents/ingest", response_model=IngestResponse)
+@limiter.limit("30/minute")
 async def ingest_document(
-    request: IngestRequest,
+    request: Request,
+    body: IngestRequest,
     repo=Depends(get_qdrant_repo),
 ):
     """Add a document to the RAG knowledge base."""
-    repo.add(doc_id=request.doc_id, content=request.content, metadata=request.metadata)
-    return IngestResponse(doc_id=request.doc_id)
+    repo.add(doc_id=body.doc_id, content=body.content, metadata=body.metadata)
+    return IngestResponse(doc_id=body.doc_id)
 
 
 @app.post("/documents/search", response_model=SearchResponse)
+@limiter.limit("30/minute")
 async def search_documents(
-    request: SearchRequest,
+    request: Request,
+    body: SearchRequest,
     repo=Depends(get_qdrant_repo),
 ):
     """Search the RAG knowledge base."""
-    docs = repo.search(query=request.query, limit=request.limit)
+    docs = repo.search(query=body.query, limit=body.limit)
     results = [
         {"doc_id": d.id, "content": d.content[:500], "score": d.score, "metadata": d.metadata}
         for d in docs
     ]
-    return SearchResponse(query=request.query, results=results, count=len(results))
+    return SearchResponse(query=body.query, results=results, count=len(results))

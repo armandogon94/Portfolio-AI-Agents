@@ -41,6 +41,7 @@ class Settings(BaseSettings):
 
     # Security
     api_key: Optional[str] = None
+    cors_origins: list[str] = ["*"]
 
     # Application
     environment: Environment = Environment.DEVELOPMENT
