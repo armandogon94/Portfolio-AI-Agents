@@ -67,8 +67,8 @@
 - [x] **7.3** Verify full Docker stack (build, dev, health, down)
 
 ### Slice 8: CI/CD Pipeline
-- [ ] **8.1** Create `.github/workflows/ci.yml` (lint -> test -> build -> push)
-- [ ] **8.2** Verify CI readiness (`make lint && make test` exit 0)
+- [x] **8.1** Create `.github/workflows/ci.yml` (lint -> test -> build -> push)
+- [x] **8.2** Verify CI readiness (`make lint && make test` exit 0)
 
 ### Checkpoint: Docker + CI/CD
 - [ ] Image builds, runs as non-root, health checks pass, CI YAML valid
@@ -97,6 +97,6 @@
 | 4 | `feat(slice-4): API key authentication` | 273f6dc |
 | 5 | `feat(slice-5): rate limiting and CORS hardening` | 7e60946 |
 | 6 | `feat(slice-6): async crew execution with task polling` | 46e4369 |
-| 7 | `feat(slice-7): multi-stage Docker with health checks` | |
+| 7 | `feat(slice-7): multi-stage Docker with health checks` | ab622c6 |
 | 8 | `feat(slice-8): GitHub Actions CI/CD pipeline` | |
 | 9 | `feat(slice-9): metrics endpoint and request monitoring` | |
