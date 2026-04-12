@@ -62,9 +62,9 @@
 ## Phase 5: Docker + CI/CD
 
 ### Slice 7: Docker Hardening
-- [ ] **7.1** Multi-stage Dockerfile (builder + runtime), non-root user
-- [ ] **7.2** Pin Qdrant v1.13.2, add health checks for all compose services, Chainlit in prod
-- [ ] **7.3** Verify full Docker stack (build, dev, health, down)
+- [x] **7.1** Multi-stage Dockerfile (builder + runtime), non-root user
+- [x] **7.2** Pin Qdrant v1.13.2, add health checks for all compose services, Chainlit in prod
+- [x] **7.3** Verify full Docker stack (build, dev, health, down)
 
 ### Slice 8: CI/CD Pipeline
 - [ ] **8.1** Create `.github/workflows/ci.yml` (lint -> test -> build -> push)
@@ -96,7 +96,7 @@
 | 3 | `feat(slice-3): structured JSON logging and request ID` | 973f1d7 |
 | 4 | `feat(slice-4): API key authentication` | 273f6dc |
 | 5 | `feat(slice-5): rate limiting and CORS hardening` | 7e60946 |
-| 6 | `feat(slice-6): async crew execution with task polling` | |
+| 6 | `feat(slice-6): async crew execution with task polling` | 46e4369 |
 | 7 | `feat(slice-7): multi-stage Docker with health checks` | |
 | 8 | `feat(slice-8): GitHub Actions CI/CD pipeline` | |
 | 9 | `feat(slice-9): metrics endpoint and request monitoring` | |
