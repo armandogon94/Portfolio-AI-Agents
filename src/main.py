@@ -9,9 +9,11 @@ from slowapi.util import get_remote_address
 
 from src.config.settings import settings
 from src.exceptions import AppError, NotFoundError
+from src.services.metrics import MetricsCollector
 from src.services.task_store import TaskStore
 from src.dependencies import get_qdrant_repo
 from src.middleware.auth import ApiKeyMiddleware
+from src.middleware.metrics import MetricsMiddleware
 from src.middleware.request_id import RequestIdMiddleware
 from src.utils.logger import setup_logging
 from src.models.schemas import (
@@ -33,6 +35,9 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Task store for async execution (DEC-02)
 task_store = TaskStore()
+
+# Metrics collector (DEC-07)
+metrics_collector = MetricsCollector()
 
 
 @asynccontextmanager
@@ -65,6 +70,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(MetricsMiddleware, collector=metrics_collector)
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(ApiKeyMiddleware)
 app.add_middleware(
@@ -105,6 +111,12 @@ async def unhandled_error_handler(request: Request, exc: Exception):
 
 
 # --- Routes ---
+
+
+@app.get("/metrics")
+async def metrics():
+    """Return application metrics. See DECISIONS.md DEC-07."""
+    return metrics_collector.snapshot()
 
 
 @app.get("/health", response_model=HealthResponse)

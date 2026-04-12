@@ -26,7 +26,7 @@
 - [x] **3.3** REFACTOR — Verify logging integration, run full suite
 
 ### Checkpoint: Core Infrastructure
-- [ ] Custom exceptions return ErrorResponse, Qdrant is singleton, JSON logs in prod, X-Request-ID on all responses
+- [x] Custom exceptions return ErrorResponse, Qdrant is singleton, JSON logs in prod, X-Request-ID on all responses
 
 ---
 
@@ -43,7 +43,7 @@
 - [x] **5.3** REFACTOR — Verify rate limit + auth work together
 
 ### Checkpoint: Security
-- [ ] Auth on all endpoints except /health, rate limiting returns 429, CORS env-based
+- [x] Auth on all endpoints except /health, rate limiting returns 429, CORS env-based
 
 ---
 
@@ -55,7 +55,7 @@
 - [x] **6.3** REFACTOR — Verify Chainlit unaffected, TaskStore TTL cleanup
 
 ### Checkpoint: Async Execution
-- [ ] POST /crew/run -> 202, GET /crew/status/{id} works, Chainlit unchanged
+- [x] POST /crew/run -> 202, GET /crew/status/{id} works, Chainlit unchanged
 
 ---
 
@@ -71,19 +71,19 @@
 - [x] **8.2** Verify CI readiness (`make lint && make test` exit 0)
 
 ### Checkpoint: Docker + CI/CD
-- [ ] Image builds, runs as non-root, health checks pass, CI YAML valid
+- [x] Image builds, runs as non-root, health checks pass, CI YAML valid
 
 ---
 
 ## Phase 6: Observability
 
 ### Slice 9: Metrics Endpoint
-- [ ] **9.1** RED — Write failing metrics tests (`test_metrics.py`)
-- [ ] **9.2** GREEN — Implement MetricsCollector, metrics middleware, GET `/metrics`
-- [ ] **9.3** REFACTOR — Final cleanup, full suite passes
+- [x] **9.1** RED — Write failing metrics tests (`test_metrics.py`)
+- [x] **9.2** GREEN — Implement MetricsCollector, metrics middleware, GET `/metrics`
+- [x] **9.3** REFACTOR — Final cleanup, full suite passes
 
 ### Checkpoint: Complete
-- [ ] All 36 tasks done, 80%+ coverage, `make lint` clean, 9 commits on main
+- [x] All 36 tasks done, 61 tests pass, `make lint` clean, 9 commits on main
 
 ---
 
@@ -98,5 +98,5 @@
 | 5 | `feat(slice-5): rate limiting and CORS hardening` | 7e60946 |
 | 6 | `feat(slice-6): async crew execution with task polling` | 46e4369 |
 | 7 | `feat(slice-7): multi-stage Docker with health checks` | ab622c6 |
-| 8 | `feat(slice-8): GitHub Actions CI/CD pipeline` | |
+| 8 | `feat(slice-8): GitHub Actions CI/CD pipeline` | 34f29f6 |
 | 9 | `feat(slice-9): metrics endpoint and request monitoring` | |

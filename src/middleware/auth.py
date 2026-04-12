@@ -11,7 +11,7 @@ from starlette.responses import Response
 from src.config.settings import settings
 
 # Paths that never require authentication
-PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc"}
+PUBLIC_PATHS = {"/health", "/metrics", "/docs", "/openapi.json", "/redoc"}
 
 
 class ApiKeyMiddleware(BaseHTTPMiddleware):
