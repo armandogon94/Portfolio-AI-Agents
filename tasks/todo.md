@@ -21,9 +21,9 @@
 - [x] **2.3** REFACTOR — Clean up, verify no bare `str(e)` remains
 
 ### Slice 3: Structured Logging
-- [ ] **3.1** RED — Write failing tests for JSON logging and request ID (`test_logging.py`)
-- [ ] **3.2** GREEN — Implement JSON formatter, request ID middleware
-- [ ] **3.3** REFACTOR — Verify logging integration, run full suite
+- [x] **3.1** RED — Write failing tests for JSON logging and request ID (`test_logging.py`)
+- [x] **3.2** GREEN — Implement JSON formatter, request ID middleware
+- [x] **3.3** REFACTOR — Verify logging integration, run full suite
 
 ### Checkpoint: Core Infrastructure
 - [ ] Custom exceptions return ErrorResponse, Qdrant is singleton, JSON logs in prod, X-Request-ID on all responses
@@ -92,7 +92,7 @@
 | Slice | Commit Message | SHA |
 |-------|---------------|-----|
 | 1 | `feat(slice-1): add Makefile, uv venv, and dependency lock` | c1fe064 |
-| 2 | `feat(slice-2): custom exceptions and Qdrant DI` | |
+| 2 | `feat(slice-2): custom exceptions and Qdrant DI` | 3bb1591 |
 | 3 | `feat(slice-3): structured JSON logging and request ID` | |
 | 4 | `feat(slice-4): API key authentication` | |
 | 5 | `feat(slice-5): rate limiting and CORS hardening` | |
