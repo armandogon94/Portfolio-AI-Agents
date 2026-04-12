@@ -99,4 +99,4 @@
 | 6 | `feat(slice-6): async crew execution with task polling` | 46e4369 |
 | 7 | `feat(slice-7): multi-stage Docker with health checks` | ab622c6 |
 | 8 | `feat(slice-8): GitHub Actions CI/CD pipeline` | 34f29f6 |
-| 9 | `feat(slice-9): metrics endpoint and request monitoring` | |
+| 9 | `feat(slice-9): metrics endpoint and request monitoring` | 92e5a12 |
