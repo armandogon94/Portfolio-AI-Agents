@@ -74,16 +74,14 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down AI Agent System")
 
 
-_is_production = settings.environment == Environment.PRODUCTION
-
 app = FastAPI(
     title="AI Agent System",
     description="Multi-agent system with CrewAI, RAG, and industry-specific analysis",
     version="2.0.0",
     lifespan=lifespan,
-    # Disable interactive docs in production (I9)
-    docs_url=None if _is_production else "/docs",
-    redoc_url=None if _is_production else "/redoc",
+    # Disable interactive docs in production — prevents API enumeration (I9)
+    docs_url=None if settings.environment == Environment.PRODUCTION else "/docs",
+    redoc_url=None if settings.environment == Environment.PRODUCTION else "/redoc",
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -94,6 +92,9 @@ app.add_middleware(ApiKeyMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    # allow_credentials=True is safe: when cors_origins=["*"] the library automatically
+    # omits the Allow-Credentials header (browsers reject wildcard + credentials).
+    # In production cors_origins is a specific domain, so credentials work as intended.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

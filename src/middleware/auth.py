@@ -12,7 +12,9 @@ from starlette.responses import Response
 
 from src.config.settings import settings
 
-# Paths that never require authentication
+# Paths that never require authentication.
+# /docs, /redoc, /openapi.json are public in development only —
+# they are disabled (docs_url=None) in production (see main.py I9).
 PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc"}
 
 
