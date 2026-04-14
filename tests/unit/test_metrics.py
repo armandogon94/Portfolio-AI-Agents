@@ -12,13 +12,15 @@ class TestMetricsEndpoint:
         from src.main import app
 
         with patch("src.middleware.auth.settings") as auth_settings:
-            auth_settings.api_key = None  # bypass auth
+            auth_settings.api_key = "test-key"
             client = TestClient(app, raise_server_exceptions=False)
             yield client
 
+    AUTH = {"X-API-Key": "test-key"}
+
     def test_metrics_endpoint_returns_json(self, client):
         """GET /metrics returns JSON with expected fields."""
-        resp = client.get("/metrics")
+        resp = client.get("/metrics", headers=self.AUTH)
         assert resp.status_code == 200
         body = resp.json()
         assert "total_requests" in body
@@ -31,29 +33,29 @@ class TestMetricsEndpoint:
         for _ in range(3):
             client.get("/health")
 
-        resp = client.get("/metrics")
+        resp = client.get("/metrics", headers=self.AUTH)
         body = resp.json()
         # At least the 3 /health requests (plus /metrics itself)
         assert body["total_requests"] >= 3
 
     def test_metrics_tracks_errors(self, client):
         """Error responses increment error_count."""
-        # Hit a non-existent task to trigger 404
-        client.get("/crew/status/nonexistent")
+        # Hit a non-existent task to trigger 404 (needs auth)
+        client.get("/crew/status/nonexistent", headers=self.AUTH)
 
-        resp = client.get("/metrics")
+        resp = client.get("/metrics", headers=self.AUTH)
         body = resp.json()
         assert body["error_count"] >= 1
 
     def test_metrics_uptime_positive(self, client):
         """uptime_seconds is a positive number."""
-        resp = client.get("/metrics")
+        resp = client.get("/metrics", headers=self.AUTH)
         body = resp.json()
         assert body["uptime_seconds"] >= 0
 
     def test_metrics_endpoints_is_dict(self, client):
         """endpoints field is a dict mapping path to counts."""
         client.get("/health")
-        resp = client.get("/metrics")
+        resp = client.get("/metrics", headers=self.AUTH)
         body = resp.json()
         assert isinstance(body["endpoints"], dict)

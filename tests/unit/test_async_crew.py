@@ -65,10 +65,25 @@ class TestAsyncCrew:
                 "topic": "test",
                 "domain": None,
                 "status": "failed",
-                "result": "Agent loop timed out",
+                "result": "Task execution failed. Check logs for details.",
                 "created_at": 1000000,
             }
             resp = client.get("/crew/status/abc")
             assert resp.status_code == 200
             assert resp.json()["status"] == "failed"
-            assert "timed out" in resp.json()["result"]
+
+    def test_execute_crew_failure_does_not_leak_exception(self):
+        """_execute_crew must not store raw str(e) — must use a sanitized message."""
+        from src.main import _execute_crew, task_store
+
+        task_id = task_store.create(topic="test", domain=None)
+
+        with patch("src.crew.run_crew", side_effect=Exception("http://internal:11434/api key=sk-abc123")):
+            _execute_crew(task_id, "test", None)
+
+        task = task_store.get(task_id)
+        assert task["status"] == "failed"
+        # Must NOT contain the raw exception with internal URLs or keys
+        assert "sk-abc123" not in task["result"]
+        assert "internal" not in task["result"]
+        assert "Check logs" in task["result"]

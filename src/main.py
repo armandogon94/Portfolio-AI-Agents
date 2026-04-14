@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import BackgroundTasks, FastAPI, Depends, Request
@@ -138,7 +139,7 @@ def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
         task_store.update(task_id, status="completed", result=result)
     except Exception as e:
         logger.error(f"Crew task {task_id} failed: {e}")
-        task_store.update(task_id, status="failed", result=str(e))
+        task_store.update(task_id, status="failed", result="Task execution failed. Check logs for details.")
 
 
 @app.post("/crew/run", response_model=CrewAsyncResponse, status_code=202)
@@ -168,7 +169,7 @@ async def ingest_document(
     repo=Depends(get_qdrant_repo),
 ):
     """Add a document to the RAG knowledge base."""
-    repo.add(doc_id=body.doc_id, content=body.content, metadata=body.metadata)
+    await asyncio.to_thread(repo.add, doc_id=body.doc_id, content=body.content, metadata=body.metadata)
     return IngestResponse(doc_id=body.doc_id)
 
 
@@ -180,7 +181,7 @@ async def search_documents(
     repo=Depends(get_qdrant_repo),
 ):
     """Search the RAG knowledge base."""
-    docs = repo.search(query=body.query, limit=body.limit)
+    docs = await asyncio.to_thread(repo.search, query=body.query, limit=body.limit)
     results = [
         {"doc_id": d.id, "content": d.content[:500], "score": d.score, "metadata": d.metadata}
         for d in docs

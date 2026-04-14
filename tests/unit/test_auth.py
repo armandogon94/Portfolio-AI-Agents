@@ -107,3 +107,23 @@ class TestApiKeyAuth:
         assert "error" in body
         assert "detail" in body
         assert "status_code" in body
+
+    def test_metrics_requires_auth(self, client_with_key):
+        """GET /metrics requires API key (not in PUBLIC_PATHS)."""
+        resp = client_with_key.get("/metrics")
+        assert resp.status_code == 401
+
+    def test_metrics_accessible_with_valid_key(self, client_with_key):
+        """GET /metrics works with valid API key."""
+        resp = client_with_key.get("/metrics", headers={"X-API-Key": "test-secret-key"})
+        assert resp.status_code == 200
+
+    def test_api_key_uses_constant_time_comparison(self):
+        """API key comparison must use hmac.compare_digest to prevent timing attacks."""
+        import inspect
+        from src.middleware import auth
+
+        source = inspect.getsource(auth)
+        assert "hmac.compare_digest" in source, (
+            "Auth module must use hmac.compare_digest for constant-time comparison"
+        )
