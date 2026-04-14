@@ -25,11 +25,15 @@ class TaskStore:
                 "result": None,
                 "created_at": time.time(),
             }
+        # Lazily evict expired tasks so memory doesn't grow unboundedly (I1)
+        self.cleanup()
         return task_id
 
     def get(self, task_id: str) -> dict | None:
         with self._lock:
-            return self._tasks.get(task_id)
+            task = self._tasks.get(task_id)
+            # Return a shallow copy so callers can't mutate stored state (I2)
+            return dict(task) if task is not None else None
 
     def update(self, task_id: str, status: str, result: str | None = None) -> None:
         with self._lock:

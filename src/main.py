@@ -8,7 +8,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
-from src.config.settings import settings
+from src.config.settings import Environment, settings
 from src.exceptions import AppError, NotFoundError
 from src.services.metrics import MetricsCollector
 from src.services.task_store import TaskStore
@@ -49,6 +49,18 @@ async def lifespan(app: FastAPI):
         f"Embeddings={settings.embedding_mode.value} | "
         f"Env={settings.environment.value}"
     )
+
+    # Production safety checks (I4, I5)
+    if settings.environment == Environment.PRODUCTION:
+        if not settings.api_key:
+            logger.warning(
+                "SECURITY WARNING: API_KEY is not set in production — all endpoints are unauthenticated"
+            )
+        if settings.cors_origins == ["*"]:
+            logger.warning(
+                "SECURITY WARNING: CORS_ORIGINS is '*' in production — all origins are allowed"
+            )
+
     # Initialize Qdrant singleton (DEC-04)
     try:
         from src.repositories.qdrant_repo import QdrantRepository
@@ -62,11 +74,16 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down AI Agent System")
 
 
+_is_production = settings.environment == Environment.PRODUCTION
+
 app = FastAPI(
     title="AI Agent System",
     description="Multi-agent system with CrewAI, RAG, and industry-specific analysis",
     version="2.0.0",
     lifespan=lifespan,
+    # Disable interactive docs in production (I9)
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -122,11 +139,7 @@ async def metrics():
 
 @app.get("/health", response_model=HealthResponse)
 async def health():
-    return HealthResponse(
-        llm_provider=settings.llm_provider.value,
-        embedding_mode=settings.embedding_mode.value,
-        environment=settings.environment.value,
-    )
+    return HealthResponse()
 
 
 def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
@@ -153,7 +166,8 @@ async def run_crew_async(request: Request, body: CrewRequest, background_tasks: 
 
 
 @app.get("/crew/status/{task_id}", response_model=TaskStatusResponse)
-async def crew_status(task_id: str):
+@limiter.limit("30/minute")
+async def crew_status(request: Request, task_id: str):
     """Poll the status of a crew execution task."""
     task = task_store.get(task_id)
     if task is None:

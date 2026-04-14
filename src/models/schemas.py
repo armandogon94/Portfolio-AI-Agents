@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class CrewRequest(BaseModel):
-    topic: str = Field(..., description="The topic for the crew to research and analyze")
+    topic: str = Field(..., max_length=500, description="The topic for the crew to research and analyze")
     domain: str | None = Field(
         None,
         description="Industry domain (healthcare, finance, real_estate). None for general.",
@@ -17,15 +17,13 @@ class CrewResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    # Only expose status — provider/environment details are operational intelligence (I11)
     status: str = "healthy"
-    llm_provider: str
-    embedding_mode: str
-    environment: str
 
 
 class IngestRequest(BaseModel):
-    doc_id: str = Field(..., description="Unique document identifier")
-    content: str = Field(..., description="Document content to ingest")
+    doc_id: str = Field(..., max_length=255, description="Unique document identifier")
+    content: str = Field(..., max_length=100_000, description="Document content to ingest")
     metadata: dict = Field(default_factory=dict, description="Optional metadata")
 
 

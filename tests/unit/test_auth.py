@@ -118,6 +118,28 @@ class TestApiKeyAuth:
         resp = client_with_key.get("/metrics", headers={"X-API-Key": "test-secret-key"})
         assert resp.status_code == 200
 
+    def test_health_does_not_leak_provider_details(self, client_with_key):
+        """GET /health without auth returns only status:healthy, not provider config."""
+        resp = client_with_key.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "healthy"
+        # Provider details must NOT be exposed to unauthenticated callers
+        assert "llm_provider" not in body
+        assert "embedding_mode" not in body
+        assert "environment" not in body
+
+    def test_docs_disabled_in_production(self):
+        """FastAPI docs and redoc URLs are None when environment is production."""
+        import inspect
+        from src import main
+
+        source = inspect.getsource(main)
+        # The app creation must conditionally disable docs in production
+        assert "docs_url" in source and "redoc_url" in source, (
+            "main.py must conditionally set docs_url/redoc_url based on environment"
+        )
+
     def test_api_key_uses_constant_time_comparison(self):
         """API key comparison must use hmac.compare_digest to prevent timing attacks."""
         import inspect

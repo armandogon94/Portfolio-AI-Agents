@@ -101,3 +101,28 @@ class TestRequestIdMiddleware:
         id1 = resp1.headers.get("x-request-id")
         id2 = resp2.headers.get("x-request-id")
         assert id1 != id2
+
+
+@pytest.mark.unit
+class TestSecurityHeaders:
+    """Security response headers are present on every response."""
+
+    @pytest.fixture
+    def client(self):
+        from src.main import app
+        return TestClient(app)
+
+    def test_x_content_type_options_header(self, client):
+        """X-Content-Type-Options: nosniff prevents MIME-type sniffing."""
+        resp = client.get("/health")
+        assert resp.headers.get("x-content-type-options") == "nosniff"
+
+    def test_x_frame_options_header(self, client):
+        """X-Frame-Options: DENY prevents clickjacking."""
+        resp = client.get("/health")
+        assert resp.headers.get("x-frame-options") == "DENY"
+
+    def test_x_xss_protection_header(self, client):
+        """X-XSS-Protection header enables browser XSS filter."""
+        resp = client.get("/health")
+        assert resp.headers.get("x-xss-protection") == "1; mode=block"

@@ -56,3 +56,29 @@ class TestTaskStore:
         time.sleep(0.01)
         store.cleanup()
         assert store.get(task_id) is None
+
+    def test_cleanup_triggered_automatically_on_create(self):
+        """Expired tasks are cleaned up automatically when new tasks are created."""
+        from src.services.task_store import TaskStore
+
+        store = TaskStore(ttl_seconds=0)  # expire immediately
+        old_id = store.create(topic="old", domain=None)
+        time.sleep(0.01)
+        # Creating a new task should trigger cleanup of the expired one
+        store.create(topic="new", domain=None)
+        assert store.get(old_id) is None
+
+    def test_get_returns_copy_not_reference(self):
+        """get() returns a copy so mutations don't affect stored state."""
+        from src.services.task_store import TaskStore
+
+        store = TaskStore()
+        task_id = store.create(topic="test", domain=None)
+        task = store.get(task_id)
+        # Mutate the returned dict
+        task["status"] = "hacked"
+        task["result"] = "tampered"
+        # The stored task must be unaffected
+        stored = store.get(task_id)
+        assert stored["status"] == "pending"
+        assert stored["result"] is None

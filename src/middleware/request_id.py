@@ -1,4 +1,4 @@
-"""Request ID middleware — adds X-Request-ID to every response."""
+"""Request ID middleware — adds X-Request-ID and security headers to every response."""
 
 import uuid
 
@@ -13,4 +13,8 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         request.state.request_id = request_id
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
+        # Security headers (I10)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
         return response

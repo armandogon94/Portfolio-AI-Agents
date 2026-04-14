@@ -59,3 +59,28 @@ class TestMetricsEndpoint:
         resp = client.get("/metrics", headers=self.AUTH)
         body = resp.json()
         assert isinstance(body["endpoints"], dict)
+
+    def test_metrics_records_even_when_handler_raises(self):
+        """MetricsMiddleware records a request even when call_next raises an exception."""
+        from src.middleware.metrics import MetricsMiddleware
+        from src.services.metrics import MetricsCollector
+        import asyncio
+
+        collector = MetricsCollector()
+        middleware = MetricsMiddleware(app=None, collector=collector)
+
+        async def boom(_request):
+            raise RuntimeError("handler exploded")
+
+        class FakeRequest:
+            url = type("URL", (), {"path": "/boom"})()
+
+        async def run():
+            try:
+                await middleware.dispatch(FakeRequest(), boom)
+            except RuntimeError:
+                pass  # expected
+
+        asyncio.run(run())
+        snapshot = collector.snapshot()
+        assert snapshot["total_requests"] >= 1

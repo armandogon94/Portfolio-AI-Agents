@@ -11,6 +11,10 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         self.collector = collector
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        response = await call_next(request)
-        self.collector.record_request(request.url.path, response.status_code)
-        return response
+        try:
+            response = await call_next(request)
+            self.collector.record_request(request.url.path, response.status_code)
+            return response
+        except Exception:
+            self.collector.record_request(request.url.path, 500)
+            raise

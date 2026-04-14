@@ -16,6 +16,42 @@ class TestErrorResponseSchema:
 
 
 @pytest.mark.unit
+class TestInputValidation:
+    """Input schema max_length constraints prevent resource exhaustion."""
+
+    def test_crew_request_topic_max_length(self):
+        """CrewRequest.topic rejects strings over 500 characters."""
+        from src.models.schemas import CrewRequest
+        from pydantic import ValidationError as PydanticValidationError
+
+        with pytest.raises(PydanticValidationError):
+            CrewRequest(topic="x" * 501)
+
+    def test_ingest_request_content_max_length(self):
+        """IngestRequest.content rejects strings over 100_000 characters."""
+        from src.models.schemas import IngestRequest
+        from pydantic import ValidationError as PydanticValidationError
+
+        with pytest.raises(PydanticValidationError):
+            IngestRequest(doc_id="d1", content="x" * 100_001)
+
+    def test_ingest_request_doc_id_max_length(self):
+        """IngestRequest.doc_id rejects strings over 255 characters."""
+        from src.models.schemas import IngestRequest
+        from pydantic import ValidationError as PydanticValidationError
+
+        with pytest.raises(PydanticValidationError):
+            IngestRequest(doc_id="x" * 256, content="hello")
+
+    def test_crew_request_accepts_valid_topic(self):
+        """CrewRequest accepts a topic within limits."""
+        from src.models.schemas import CrewRequest
+
+        req = CrewRequest(topic="AI in healthcare")
+        assert req.topic == "AI in healthcare"
+
+
+@pytest.mark.unit
 class TestExceptionHierarchy:
     def test_app_error_has_status_code_and_message(self):
         """AppError stores status_code and message."""

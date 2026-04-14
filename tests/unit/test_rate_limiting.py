@@ -36,6 +36,14 @@ class TestRateLimiting:
             resp = client.get("/health")
             assert resp.status_code == 200
 
+    def test_rate_limit_crew_status_has_limit(self):
+        """/crew/status/{id} has a rate limit decorator applied."""
+        import inspect
+        from src import main
+
+        source = inspect.getsource(main.crew_status)
+        assert "limiter.limit" in source, "/crew/status must have a @limiter.limit decorator"
+
     def test_rate_limit_429_has_error_body(self, client):
         """429 response includes an error message."""
         with patch("src.middleware.auth.settings") as auth_settings:
