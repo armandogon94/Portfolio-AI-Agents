@@ -33,7 +33,7 @@ class IngestResponse(BaseModel):
 
 
 class SearchRequest(BaseModel):
-    query: str = Field(..., description="Search query")
+    query: str = Field(..., max_length=500, description="Search query")
     limit: int = Field(5, ge=1, le=20, description="Max results to return")
 
 

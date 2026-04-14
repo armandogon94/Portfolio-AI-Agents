@@ -50,6 +50,21 @@ class TestInputValidation:
         req = CrewRequest(topic="AI in healthcare")
         assert req.topic == "AI in healthcare"
 
+    def test_search_request_query_max_length(self):
+        """SearchRequest.query rejects strings over 500 characters."""
+        from src.models.schemas import SearchRequest
+        from pydantic import ValidationError as PydanticValidationError
+
+        with pytest.raises(PydanticValidationError):
+            SearchRequest(query="x" * 501)
+
+    def test_search_request_accepts_valid_query(self):
+        """SearchRequest accepts a query within limits."""
+        from src.models.schemas import SearchRequest
+
+        req = SearchRequest(query="AI applications in oncology")
+        assert req.query == "AI applications in oncology"
+
 
 @pytest.mark.unit
 class TestExceptionHierarchy:

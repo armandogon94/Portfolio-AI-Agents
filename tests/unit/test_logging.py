@@ -126,3 +126,8 @@ class TestSecurityHeaders:
         """X-XSS-Protection header enables browser XSS filter."""
         resp = client.get("/health")
         assert resp.headers.get("x-xss-protection") == "1; mode=block"
+
+    def test_content_security_policy_header(self, client):
+        """Content-Security-Policy: default-src 'none' — restricts resource loading for API responses."""
+        resp = client.get("/health")
+        assert resp.headers.get("content-security-policy") == "default-src 'none'"
