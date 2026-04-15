@@ -8,9 +8,11 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
+import httpx
+
 from src.config.settings import Environment, settings
 from src.exceptions import AppError, NotFoundError
-from src.services.ingest_service import IngestService
+from src.services.ingest_service import IngestService, _validate_url
 from src.services.metrics import MetricsCollector
 from src.services.sqlite_store import SQLiteResultStore
 from src.services.task_store import TaskStore
@@ -156,6 +158,16 @@ async def health():
     return HealthResponse()
 
 
+async def _deliver_webhook(url: str, payload: dict) -> None:
+    """POST task result to webhook URL. Logs failures; never raises."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.post(url, json=payload)
+        logger.info(f"Webhook delivered to {url}")
+    except Exception as e:
+        logger.warning(f"Webhook delivery failed for {url}: {e}")
+
+
 def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
     """Background task that runs the crew and updates the task store."""
     import time
@@ -175,17 +187,33 @@ def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
             result=result,
             duration_seconds=round(duration, 2),
         )
+        status = "completed"
     except Exception as e:
         logger.error(f"Crew task {task_id} failed: {e}")
-        task_store.update(task_id, status="failed", result="Task execution failed. Check logs for details.")
+        result = "Task execution failed. Check logs for details."
+        task_store.update(task_id, status="failed", result=result)
+        status = "failed"
+
+    # Deliver webhook if configured (best-effort)
+    task = task_store.get(task_id)
+    webhook_url = task.get("webhook_url") if task else None
+    if webhook_url:
+        asyncio.run(
+            _deliver_webhook(
+                webhook_url,
+                {"task_id": task_id, "status": status, "result": result},
+            )
+        )
 
 
 @app.post("/crew/run", response_model=CrewAsyncResponse, status_code=202)
 @limiter.limit("5/minute")
 async def run_crew_async(request: Request, body: CrewRequest, background_tasks: BackgroundTasks):
     """Submit a crew execution job. Returns 202 with task_id for polling."""
+    if body.webhook_url:
+        _validate_url(body.webhook_url)  # raises ValidationError for private IPs / bad schemes
     logger.info(f"Queuing crew: topic='{body.topic}', domain={body.domain}")
-    task_id = task_store.create(topic=body.topic, domain=body.domain)
+    task_id = task_store.create(topic=body.topic, domain=body.domain, webhook_url=body.webhook_url)
     background_tasks.add_task(_execute_crew, task_id, body.topic, body.domain)
     return CrewAsyncResponse(task_id=task_id)
 

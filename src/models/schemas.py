@@ -7,6 +7,11 @@ class CrewRequest(BaseModel):
         None,
         description="Industry domain (healthcare, finance, real_estate). None for general.",
     )
+    webhook_url: str | None = Field(
+        None,
+        max_length=2048,
+        description="Optional HTTPS URL to POST the result to when the task completes.",
+    )
 
 
 class CrewResponse(BaseModel):

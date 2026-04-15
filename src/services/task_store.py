@@ -14,7 +14,7 @@ class TaskStore:
         self._lock = threading.Lock()
         self._ttl = ttl_seconds
 
-    def create(self, topic: str, domain: str | None) -> str:
+    def create(self, topic: str, domain: str | None, webhook_url: str | None = None) -> str:
         task_id = str(uuid.uuid4())
         with self._lock:
             self._tasks[task_id] = {
@@ -24,6 +24,7 @@ class TaskStore:
                 "status": "pending",
                 "result": None,
                 "created_at": time.time(),
+                "webhook_url": webhook_url,
             }
         # Lazily evict expired tasks so memory doesn't grow unboundedly (I1)
         self.cleanup()
