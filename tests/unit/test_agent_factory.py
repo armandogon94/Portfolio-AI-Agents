@@ -85,3 +85,26 @@ class TestAgentFactory:
 
                 factory = AgentFactory(domain="healthcare")
                 assert len(factory.domain_overrides) > 0
+
+    def test_all_seven_domains_exist(self):
+        """All 7 domain YAML files are present."""
+        domains_dir = Path(__file__).parent.parent.parent / "src" / "config" / "domains"
+        expected = {"healthcare", "finance", "real_estate", "legal", "education", "engineering"}
+        found = {f.stem for f in domains_dir.glob("*.yaml")}
+        assert expected <= found, f"Missing domains: {expected - found}"
+
+    @pytest.mark.parametrize("domain", ["legal", "education", "engineering"])
+    def test_new_domains_load_via_agent_factory(self, domain):
+        """New domain configs are loaded and applied by AgentFactory."""
+        with patch("src.agents.factory.LLMFactory") as MockFactory:
+            MockFactory.create.return_value = MagicMock()
+
+            with patch("src.agents.factory.ToolRegistry") as MockRegistry:
+                MockRegistry.get.return_value = MagicMock()
+
+                from src.agents.factory import AgentFactory
+
+                factory = AgentFactory(domain=domain)
+                assert len(factory.domain_overrides) > 0, (
+                    f"Domain '{domain}' produced no agent overrides"
+                )

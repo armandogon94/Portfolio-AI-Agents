@@ -4,7 +4,7 @@ from src.config.settings import settings
 
 setup_logging()
 
-DOMAINS = ["general", "healthcare", "finance", "real_estate"]
+DOMAINS = ["general", "healthcare", "finance", "real_estate", "legal", "education", "engineering"]
 
 
 @cl.on_chat_start
@@ -19,7 +19,7 @@ async def on_chat_start():
             "I have a team of specialized agents (Researcher, Analyst, Writer, Reviewer) "
             "ready to help you.\n\n"
             "**Commands:**\n"
-            "- `/domain <name>` — Switch industry domain (healthcare, finance, real_estate)\n"
+            "- `/domain <name>` — Switch industry domain (healthcare, finance, real_estate, legal, education, engineering)\n"
             "- `/domain general` — Reset to general mode\n\n"
             "Ask me anything to get started!"
         )
