@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import threading
 
 import chainlit as cl
 
@@ -59,21 +61,43 @@ async def on_message(message: cl.Message):
     messages = cl.user_session.get("messages")
     messages.append({"role": "user", "content": content})
 
-    msg = cl.Message(content="")
+    msg = cl.Message(content="Assembling agent crew...")
     await msg.send()
 
     try:
-        msg.content = "Assembling agent crew... This may take a moment."
+        loop = asyncio.get_running_loop()
+        progress_lines: list[str] = []
+        progress_lock = threading.Lock()
+
+        def on_step(step: object) -> None:
+            """Called by CrewAI after each agent step (runs in crew thread)."""
+            from crewai.agents.crew_agent_executor import AgentAction, AgentFinish
+
+            if isinstance(step, AgentAction):
+                tool_input = str(step.tool_input)
+                snippet = tool_input[:120] + "..." if len(tool_input) > 120 else tool_input
+                line = f"**[{step.tool}]** {snippet}"
+            elif isinstance(step, AgentFinish):
+                thought = step.thought[:150] + "..." if len(step.thought) > 150 else step.thought
+                line = f"**Done:** {thought}"
+            else:
+                line = str(step)[:200]
+
+            with progress_lock:
+                progress_lines.append(line)
+                snapshot = list(progress_lines)
+
+            asyncio.run_coroutine_threadsafe(_update_progress(msg, snapshot), loop)
+
+        from src.crew import build_crew
+
+        crew = build_crew(domain=domain, step_callback=on_step)
+        result = await asyncio.to_thread(crew.kickoff, inputs={"topic": content})
+
+        msg.content = str(result)
         await msg.update()
 
-        from src.crew import run_crew
-
-        result = run_crew(topic=content, domain=domain)
-
-        msg.content = result
-        await msg.update()
-
-        messages.append({"role": "assistant", "content": result})
+        messages.append({"role": "assistant", "content": str(result)})
         cl.user_session.set("messages", messages)
 
     except Exception as e:
@@ -81,6 +105,12 @@ async def on_message(message: cl.Message):
         user_msg = str(e) if isinstance(e, AppError) else "An unexpected error occurred. Please try again."
         msg.content = f"Error: {user_msg}"
         await msg.update()
+
+
+async def _update_progress(msg: cl.Message, lines: list[str]) -> None:
+    """Update the Chainlit message with current progress lines."""
+    msg.content = "\n\n".join(lines) + "\n\n_Running..._"
+    await msg.update()
 
 
 @cl.on_chat_end
