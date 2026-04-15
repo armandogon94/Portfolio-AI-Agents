@@ -65,12 +65,14 @@ class TestWebhookValidation:
     @pytest.fixture
     def client(self):
         from fastapi.testclient import TestClient
+        from src.main import app, limiter
+
+        # Reset rate limiter state that may have been exhausted by test_rate_limiting.py
+        limiter._storage.reset()
 
         with patch("src.middleware.auth.settings") as auth_mock:
             auth_mock.api_key = None
-            from src.main import app
-
-            return TestClient(app)
+            yield TestClient(app, raise_server_exceptions=False)
 
     def test_crew_run_without_webhook_still_works(self, client):
         """POST /crew/run without webhook_url returns 202 as before."""
