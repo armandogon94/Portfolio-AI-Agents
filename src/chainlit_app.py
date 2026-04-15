@@ -91,8 +91,11 @@ async def on_message(message: cl.Message):
 
         from src.crew import build_crew
 
+        prior_context = _format_prior_context(messages[:-1])  # exclude the just-added user msg
         crew = build_crew(domain=domain, step_callback=on_step)
-        result = await asyncio.to_thread(crew.kickoff, inputs={"topic": content})
+        result = await asyncio.to_thread(
+            crew.kickoff, inputs={"topic": content, "prior_context": prior_context}
+        )
 
         msg.content = str(result)
         await msg.update()
@@ -111,6 +114,32 @@ async def _update_progress(msg: cl.Message, lines: list[str]) -> None:
     """Update the Chainlit message with current progress lines."""
     msg.content = "\n\n".join(lines) + "\n\n_Running..._"
     await msg.update()
+
+
+def _format_prior_context(messages: list[dict], limit: int = 3) -> str:
+    """Build a prior context string from the last N user/assistant message pairs.
+
+    Args:
+        messages: Conversation history list of {role, content} dicts.
+        limit: Maximum number of prior topic summaries to include.
+
+    Returns:
+        A formatted string for injection into the research task, or "" if no history.
+    """
+    pairs: list[str] = []
+    i = 0
+    while i < len(messages) - 1 and len(pairs) < limit:
+        if messages[i]["role"] == "user" and messages[i + 1]["role"] == "assistant":
+            topic_snippet = messages[i]["content"][:200]
+            pairs.append(f"- Prior topic: {topic_snippet}")
+            i += 2
+        else:
+            i += 1
+
+    if not pairs:
+        return ""
+
+    return "Prior session context (for reference only — focus on the current topic):\n" + "\n".join(pairs)
 
 
 @cl.on_chat_end

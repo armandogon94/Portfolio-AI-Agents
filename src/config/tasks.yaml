@@ -2,6 +2,8 @@ research:
   description: >
     Research the following topic thoroughly: {topic}
 
+    {prior_context}
+
     Gather information from web searches and internal documents.
     Include relevant data, statistics, and expert opinions.
     Note the sources of your information.
