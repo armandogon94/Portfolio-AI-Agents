@@ -1,8 +1,13 @@
+import logging
+
 import chainlit as cl
-from src.utils.logger import setup_logging
+
 from src.config.settings import settings
+from src.exceptions import AppError
+from src.utils.logger import setup_logging
 
 setup_logging()
+logger = logging.getLogger(__name__)
 
 DOMAINS = ["general", "healthcare", "finance", "real_estate", "legal", "education", "engineering"]
 
@@ -72,7 +77,9 @@ async def on_message(message: cl.Message):
         cl.user_session.set("messages", messages)
 
     except Exception as e:
-        msg.content = f"Error: {str(e)}"
+        logger.exception("Crew execution failed")
+        user_msg = str(e) if isinstance(e, AppError) else "An unexpected error occurred. Please try again."
+        msg.content = f"Error: {user_msg}"
         await msg.update()
 
 

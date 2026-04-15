@@ -8,7 +8,7 @@ researcher:
   tools:
     - web_search
     - document_search
-  allow_delegation: true
+  allow_delegation: false  # see DECISIONS.md DEC-13
   verbose: true
 
 analyst:

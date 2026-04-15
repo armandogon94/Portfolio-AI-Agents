@@ -287,3 +287,22 @@ class ErrorResponse(BaseModel):
 - Easy to revert a specific slice if needed
 - `git log --oneline` shows the progression clearly
 - CI runs on every push to main (validates each slice)
+
+---
+
+## DEC-13: Disable Agent Delegation (not hierarchical process)
+
+**Status:** Accepted
+
+**Context:** The `researcher` agent was configured with `allow_delegation: true` in `agents.yaml`. CrewAI's delegation feature requires either a hierarchical crew process (with a manager agent) or explicit delegation targets. Neither is configured — the crew uses `Process.sequential` with no manager.
+
+**Decision:** Set `allow_delegation: false` on all agents. The sequential process assigns each task to a specific agent in order; delegation would create unrouted subtask requests that fail silently or raise errors at runtime.
+
+**Alternatives rejected:**
+- **Hierarchical process with manager** — Requires an additional LLM call per task for the manager agent to route work. With a single shared Ollama instance on constrained RAM, this doubles coordination overhead with no user-visible benefit.
+- **Keep allow_delegation: true** — Causes confusing runtime failures when the researcher tries to delegate with no valid targets.
+
+**Consequences:**
+- Agents execute their assigned tasks directly without attempting to create subtasks.
+- Simpler, more predictable execution flow.
+- Can be revisited if a hierarchical multi-agent workflow is needed in the future.
