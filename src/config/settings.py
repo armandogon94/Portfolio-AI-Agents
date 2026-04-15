@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     app_port: int = 8000
     chainlit_port: int = 8001
 
+    # Persistence
+    sqlite_db_path: str = "data/results.db"
+
     model_config = {
         "env_file": (".env", ".env.local"),
         "env_file_encoding": "utf-8",

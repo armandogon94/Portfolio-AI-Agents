@@ -306,3 +306,22 @@ class ErrorResponse(BaseModel):
 - Agents execute their assigned tasks directly without attempting to create subtasks.
 - Simpler, more predictable execution flow.
 - Can be revisited if a hierarchical multi-agent workflow is needed in the future.
+
+---
+
+## DEC-14: SQLite for Completed Run History (not replacing in-memory TaskStore)
+
+**Status:** Accepted
+
+**Context:** The in-memory `TaskStore` is sufficient for polling in-flight tasks (TTL=1h), but all history is lost on restart. Users want to review past research runs.
+
+**Decision:** Add a `SQLiteResultStore` that persists completed task results to `data/results.db`. The in-memory `TaskStore` remains for in-flight task state (pending/running). On task completion, `_execute_crew` calls `sqlite_store.save()`. A new `GET /crew/history` endpoint exposes recent runs.
+
+**Alternatives rejected:**
+- **Replace TaskStore with SQLite entirely** — SQLite writes introduce latency on every status update (pending→running→completed). The in-memory store is fast and sufficient for the polling window.
+- **PostgreSQL** — Adds Docker infrastructure dependency. SQLite requires zero infrastructure and is appropriate for single-instance deployments.
+
+**Consequences:**
+- Completed runs persist across restarts.
+- `data/results.db` is created automatically; `data/` is git-ignored.
+- History is read-only via API (no delete endpoint).

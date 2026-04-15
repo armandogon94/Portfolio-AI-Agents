@@ -44,3 +44,4 @@ knowledge/uploads/
 
 # Claude Code - user specific
 .claude/projects/
+data/

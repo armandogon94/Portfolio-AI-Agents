@@ -11,6 +11,7 @@ from slowapi.util import get_remote_address
 from src.config.settings import Environment, settings
 from src.exceptions import AppError, NotFoundError
 from src.services.metrics import MetricsCollector
+from src.services.sqlite_store import SQLiteResultStore
 from src.services.task_store import TaskStore
 from src.dependencies import get_qdrant_repo
 from src.middleware.auth import ApiKeyMiddleware
@@ -23,6 +24,7 @@ from src.models.schemas import (
     HealthResponse,
     IngestRequest,
     IngestResponse,
+    RunHistoryResponse,
     SearchRequest,
     SearchResponse,
     TaskStatusResponse,
@@ -39,6 +41,9 @@ task_store = TaskStore()
 
 # Metrics collector (DEC-07)
 metrics_collector = MetricsCollector()
+
+# SQLite result store for completed run history (DEC-14)
+sqlite_store = SQLiteResultStore(db_path=settings.sqlite_db_path)
 
 
 @asynccontextmanager
@@ -145,12 +150,23 @@ async def health():
 
 def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
     """Background task that runs the crew and updates the task store."""
+    import time
+
     try:
         from src.crew import run_crew
 
         task_store.update(task_id, status="running")
+        start = time.monotonic()
         result = run_crew(topic=topic, domain=domain)
+        duration = time.monotonic() - start
         task_store.update(task_id, status="completed", result=result)
+        sqlite_store.save(
+            task_id=task_id,
+            topic=topic,
+            domain=domain,
+            result=result,
+            duration_seconds=round(duration, 2),
+        )
     except Exception as e:
         logger.error(f"Crew task {task_id} failed: {e}")
         task_store.update(task_id, status="failed", result="Task execution failed. Check logs for details.")
@@ -174,6 +190,15 @@ async def crew_status(request: Request, task_id: str):
     if task is None:
         raise NotFoundError(f"Task '{task_id}' not found")
     return TaskStatusResponse(**task)
+
+
+@app.get("/crew/history", response_model=RunHistoryResponse)
+@limiter.limit("30/minute")
+async def crew_history(request: Request, limit: int = 20):
+    """Return the most recent completed crew runs from persistent storage (DEC-14)."""
+    limit = max(1, min(limit, 100))
+    runs = sqlite_store.list_recent(limit=limit)
+    return RunHistoryResponse(runs=runs, count=len(runs))
 
 
 @app.post("/documents/ingest", response_model=IngestResponse)

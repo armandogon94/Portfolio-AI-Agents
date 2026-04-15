@@ -56,6 +56,20 @@ class TaskStatusResponse(BaseModel):
     result: str | None
 
 
+class RunHistoryEntry(BaseModel):
+    task_id: str
+    topic: str
+    domain: str | None
+    result: str
+    duration_seconds: float
+    created_at: str
+
+
+class RunHistoryResponse(BaseModel):
+    runs: list[RunHistoryEntry]
+    count: int
+
+
 class ErrorResponse(BaseModel):
     error: str
     detail: str
