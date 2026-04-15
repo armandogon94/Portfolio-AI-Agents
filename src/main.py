@@ -10,6 +10,7 @@ from slowapi.util import get_remote_address
 
 from src.config.settings import Environment, settings
 from src.exceptions import AppError, NotFoundError
+from src.services.ingest_service import IngestService
 from src.services.metrics import MetricsCollector
 from src.services.sqlite_store import SQLiteResultStore
 from src.services.task_store import TaskStore
@@ -28,6 +29,8 @@ from src.models.schemas import (
     SearchRequest,
     SearchResponse,
     TaskStatusResponse,
+    UrlIngestRequest,
+    UrlIngestResponse,
 )
 
 setup_logging()
@@ -44,6 +47,9 @@ metrics_collector = MetricsCollector()
 
 # SQLite result store for completed run history (DEC-14)
 sqlite_store = SQLiteResultStore(db_path=settings.sqlite_db_path)
+
+# URL/PDF ingest service (DEC-15)
+ingest_service = IngestService()
 
 
 @asynccontextmanager
@@ -229,3 +235,18 @@ async def search_documents(
         for d in docs
     ]
     return SearchResponse(query=body.query, results=results, count=len(results))
+
+
+@app.post("/documents/ingest/url", response_model=UrlIngestResponse)
+@limiter.limit("10/minute")
+async def ingest_url(
+    request: Request,
+    body: UrlIngestRequest,
+    repo=Depends(get_qdrant_repo),
+):
+    """Fetch a URL or PDF and ingest the extracted text into the RAG knowledge base (DEC-15)."""
+    text = await ingest_service.fetch_url(body.url)
+    doc_id = body.doc_id or body.url
+    metadata = {"source_url": body.url, **body.metadata}
+    await asyncio.to_thread(repo.add, doc_id=doc_id, content=text, metadata=metadata)
+    return UrlIngestResponse(doc_id=doc_id, char_count=len(text))

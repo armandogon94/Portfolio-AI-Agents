@@ -35,6 +35,9 @@ dependencies = [
     "python-json-logger>=2.0.0",
     # Rate limiting
     "slowapi>=0.1.9",
+    # URL + PDF ingest
+    "beautifulsoup4>=4.12.0",
+    "pypdf>=4.0.0",
 ]
 
 [project.optional-dependencies]

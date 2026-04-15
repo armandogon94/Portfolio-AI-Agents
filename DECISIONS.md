@@ -325,3 +325,21 @@ class ErrorResponse(BaseModel):
 - Completed runs persist across restarts.
 - `data/results.db` is created automatically; `data/` is git-ignored.
 - History is read-only via API (no delete endpoint).
+
+---
+
+## DEC-15: httpx + BeautifulSoup for URL/PDF Ingest (not headless browser)
+
+**Status:** Accepted
+
+**Context:** Users want to ingest web pages and PDFs into Qdrant so agents can use them as RAG context. Two options: (a) httpx + BeautifulSoup + pypdf; (b) headless browser (Playwright).
+
+**Decision:** Use httpx for HTTP fetching, BeautifulSoup for HTML→text extraction, pypdf for PDF parsing. SSRF protection validates URL scheme and blocks private IP ranges before fetching.
+
+**Alternatives rejected:**
+- **Playwright (headless browser)** — Adds ~150MB dependency and process overhead. Needed for JavaScript-heavy SPAs, but most research-relevant content (news, docs, PDFs) is served as static HTML. The extra complexity is not justified for this use case.
+
+**Consequences:**
+- Works for ~90% of web content (static HTML, server-rendered pages, PDFs).
+- Does not work for JavaScript-rendered SPAs (e.g., React/Vue apps without SSR).
+- Rate limited to 10/minute per IP to prevent abuse of outbound HTTP.

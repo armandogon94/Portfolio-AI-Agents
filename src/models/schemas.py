@@ -56,6 +56,18 @@ class TaskStatusResponse(BaseModel):
     result: str | None
 
 
+class UrlIngestRequest(BaseModel):
+    url: str = Field(..., max_length=2048, description="URL to fetch and ingest into RAG")
+    doc_id: str | None = Field(None, max_length=255, description="Override doc ID (default: URL)")
+    metadata: dict = Field(default_factory=dict, description="Optional metadata")
+
+
+class UrlIngestResponse(BaseModel):
+    doc_id: str
+    status: str = "ingested"
+    char_count: int
+
+
 class RunHistoryEntry(BaseModel):
     task_id: str
     topic: str
