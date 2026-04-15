@@ -1,0 +1,44 @@
+documents:
+  - id: "healthcare_industry_overview"
+    content: >
+      Healthcare Industry Overview: The global healthcare market encompasses hospitals,
+      physician practices, pharmaceuticals, medical devices, health insurance, and digital
+      health. Key trends include AI-assisted diagnostics, telehealth expansion, value-based
+      care models, and interoperability standards (HL7 FHIR). The US healthcare system
+      spends ~18% of GDP, with rising costs driven by chronic disease prevalence, drug
+      pricing, and administrative overhead. Major payers include Medicare, Medicaid, and
+      commercial insurers. ACOs and integrated delivery networks are reshaping reimbursement.
+    metadata:
+      domain: healthcare
+      type: overview
+      topic: industry
+
+  - id: "healthcare_regulations_hipaa"
+    content: >
+      Key Healthcare Regulations: HIPAA (Health Insurance Portability and Accountability Act)
+      governs the privacy and security of protected health information (PHI). Covered entities
+      must implement administrative, physical, and technical safeguards. HITECH (2009) expanded
+      HIPAA to business associates and increased penalties for breaches. The FDA regulates
+      medical devices under 21 CFR Parts 800-898 and oversees drug approval via IND and NDA
+      pathways. CMS administers Medicare/Medicaid and sets quality reporting requirements
+      under MACRA/MIPS. State laws add additional requirements for scope of practice,
+      licensure, and telehealth.
+    metadata:
+      domain: healthcare
+      type: regulations
+      topic: compliance
+
+  - id: "healthcare_ai_trends"
+    content: >
+      AI in Healthcare: Machine learning applications include radiology image analysis
+      (detecting tumors, diabetic retinopathy), NLP for clinical documentation, predictive
+      analytics for patient deterioration (sepsis prediction, readmission risk), and drug
+      discovery acceleration. FDA has cleared over 500 AI/ML-based medical devices. Challenges
+      include data bias, explainability requirements, EHR integration, and FDA regulatory
+      pathways for adaptive algorithms. Major vendors include Epic, Cerner (Oracle), Google
+      Health, Microsoft, and specialized startups. Clinical validation and real-world
+      performance monitoring are critical for deployment.
+    metadata:
+      domain: healthcare
+      type: technology
+      topic: ai

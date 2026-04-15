@@ -1,0 +1,48 @@
+documents:
+  - id: "education_learning_science"
+    content: >
+      Learning Science Fundamentals: Cognitive load theory (Sweller) distinguishes intrinsic,
+      extraneous, and germane load. Spaced repetition leverages the spacing effect to improve
+      long-term retention. Retrieval practice (testing effect) strengthens memory more than
+      re-reading. Interleaving different problem types improves transfer. Worked examples reduce
+      cognitive load for novices; problem-solving is more effective for experts (expertise
+      reversal effect). Formative assessment provides real-time feedback to guide instruction.
+      Growth mindset research (Dweck) shows belief in malleable intelligence improves persistence
+      and achievement. Universal Design for Learning (UDL) provides multiple means of
+      representation, engagement, and expression.
+    metadata:
+      domain: education
+      type: research
+      topic: learning_science
+
+  - id: "education_policy_us"
+    content: >
+      US Education Policy: K-12 education is primarily state-controlled with federal oversight
+      via ESEA/ESSA (Every Student Succeeds Act). Title I funding supports high-poverty schools.
+      IDEA (Individuals with Disabilities Education Act) mandates free appropriate public
+      education (FAPE) and IEPs for students with disabilities. Common Core State Standards
+      were adopted by 41 states but remain controversial. NAEP (National Assessment of
+      Educational Progress) provides national benchmarking. Higher education is regulated by
+      accreditation bodies (regional and national). FAFSA reforms in 2024 simplified financial
+      aid access. Student loan debt exceeds $1.7T with ongoing debates about forgiveness and
+      income-driven repayment.
+    metadata:
+      domain: education
+      type: policy
+      topic: us_policy
+
+  - id: "education_technology"
+    content: >
+      Education Technology (EdTech): LMS platforms (Canvas, Blackboard, Google Classroom)
+      manage course delivery. Adaptive learning systems (Khan Academy, DreamBox) personalize
+      pacing and content based on performance data. AI tutoring systems (Khanmigo, Carnegie
+      Learning) provide real-time feedback. MOOCs (Coursera, edX) democratize access to
+      university content. Learning analytics use data to identify at-risk students and improve
+      outcomes. VR/AR applications support lab simulations and experiential learning.
+      Accessibility technologies include screen readers, captioning, and text-to-speech.
+      Digital equity gaps (device access, broadband) remain significant barriers, highlighted
+      by COVID-19 remote learning challenges.
+    metadata:
+      domain: education
+      type: technology
+      topic: edtech

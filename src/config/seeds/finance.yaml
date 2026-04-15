@@ -1,0 +1,42 @@
+documents:
+  - id: "finance_industry_overview"
+    content: >
+      Financial Services Industry Overview: The sector includes commercial banking, investment
+      banking, asset management, insurance, fintech, and capital markets. Key trends include
+      open banking (PSD2), embedded finance, BNPL (buy now pay later), DeFi (decentralized
+      finance), and central bank digital currencies (CBDCs). Major regulators: Federal Reserve,
+      OCC, FDIC, SEC, CFTC, CFPB. Basel III/IV frameworks govern bank capital adequacy.
+      Interest rate environment significantly impacts net interest margins and valuation multiples.
+      ESG investing has grown to ~$35T in AUM globally.
+    metadata:
+      domain: finance
+      type: overview
+      topic: industry
+
+  - id: "finance_regulations"
+    content: >
+      Financial Regulations: Dodd-Frank Act (2010) introduced systemic risk oversight, Volcker
+      Rule (proprietary trading limits), and consumer protection via CFPB. Sarbanes-Oxley (2002)
+      governs financial reporting and auditor independence for public companies. AML/KYC
+      requirements under Bank Secrecy Act require customer due diligence and suspicious activity
+      reporting. MiFID II (EU) governs investment services and market transparency. GDPR affects
+      data handling for EU customer financial data. FATCA requires reporting of foreign accounts
+      held by US persons. FinCEN enforces money transmission laws and beneficial ownership rules.
+    metadata:
+      domain: finance
+      type: regulations
+      topic: compliance
+
+  - id: "finance_valuation_frameworks"
+    content: >
+      Financial Valuation Frameworks: DCF (discounted cash flow) analysis discounts projected
+      free cash flows at the WACC to derive intrinsic value. Comparable company analysis (comps)
+      benchmarks EV/EBITDA, P/E, and P/S multiples against peers. Precedent transaction analysis
+      uses M&A deal multiples. LBO analysis models leveraged buyout returns. Key metrics include
+      EBITDA margin, return on equity (ROE), return on invested capital (ROIC), debt/EBITDA,
+      and interest coverage ratios. Credit analysis focuses on cash flow generation, leverage,
+      liquidity, and covenant compliance.
+    metadata:
+      domain: finance
+      type: methodology
+      topic: valuation

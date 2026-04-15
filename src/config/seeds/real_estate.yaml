@@ -1,0 +1,45 @@
+documents:
+  - id: "real_estate_overview"
+    content: >
+      Real Estate Industry Overview: The sector includes residential, commercial (office,
+      retail, industrial, multifamily), and specialty properties (data centers, healthcare
+      facilities, self-storage). REITs (Real Estate Investment Trusts) provide public market
+      exposure and must distribute 90% of taxable income. Key metrics: cap rate (NOI/value),
+      NOI (net operating income), occupancy rate, lease term, and GRM (gross rent multiplier).
+      Macroeconomic drivers include interest rates, employment, population migration, and
+      supply constraints. PropTech is transforming brokerage, property management, and
+      construction through AI, IoT sensors, and digital platforms.
+    metadata:
+      domain: real_estate
+      type: overview
+      topic: industry
+
+  - id: "real_estate_valuation"
+    content: >
+      Real Estate Valuation Methods: Income approach uses cap rate capitalization (NOI / cap
+      rate = value) or DCF analysis with projected cash flows and terminal value. Sales
+      comparison approach benchmarks against comparable transactions (comps) adjusted for
+      differences in size, location, condition, and timing. Cost approach estimates land value
+      plus depreciated replacement cost of improvements. For multifamily, key metrics include
+      price/unit, GRM, and cash-on-cash return. Commercial properties trade on trailing and
+      forward NOI. Due diligence covers title search, survey, environmental assessment (Phase I/II),
+      zoning, and lease review.
+    metadata:
+      domain: real_estate
+      type: methodology
+      topic: valuation
+
+  - id: "real_estate_market_cycles"
+    content: >
+      Real Estate Market Cycles: The four-phase cycle includes recovery (rising occupancy,
+      below-equilibrium rents), expansion (above-equilibrium construction starts, rent growth),
+      hypersupply (supply exceeds demand, rising vacancies), and recession (negative absorption,
+      distressed sales). The cycle varies by property type and market. Leading indicators include
+      housing starts, permit activity, construction spending, and CMBS spreads. Post-2022 rate
+      hikes have compressed cap rates, increased debt service costs, and created stress in
+      office and retail. Industrial and multifamily remain relatively strong due to structural
+      demand tailwinds.
+    metadata:
+      domain: real_estate
+      type: analysis
+      topic: market_cycles

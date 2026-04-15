@@ -1,0 +1,48 @@
+documents:
+  - id: "engineering_systems_design"
+    content: >
+      Systems Engineering Fundamentals: Systems engineering applies structured processes to
+      design, develop, and verify complex systems. Key processes per IEEE 15288: concept of
+      operations (ConOps), requirements elicitation and analysis, architecture design,
+      integration and verification, and validation. Model-Based Systems Engineering (MBSE)
+      uses SysML to capture system models replacing document-centric approaches. Trade study
+      analysis compares alternative designs against weighted criteria. Failure Mode and Effects
+      Analysis (FMEA) identifies potential failure modes and their impacts. Design for
+      reliability, maintainability, and testability (RMT) must be considered from inception.
+      V-model lifecycle links each development stage to a corresponding verification stage.
+    metadata:
+      domain: engineering
+      type: methodology
+      topic: systems_engineering
+
+  - id: "engineering_software_architecture"
+    content: >
+      Software Architecture Patterns: Microservices decompose applications into independently
+      deployable services communicating via APIs (REST, gRPC, event streaming). Service mesh
+      (Istio, Linkerd) handles service discovery, load balancing, and mTLS. Event-driven
+      architecture uses message brokers (Kafka, RabbitMQ) for asynchronous communication.
+      CQRS (Command Query Responsibility Segregation) separates read and write models.
+      Event sourcing stores state as immutable sequence of events. Clean Architecture
+      (Uncle Bob) organizes code around use cases with dependencies pointing inward.
+      CAP theorem states distributed systems can guarantee at most two of: consistency,
+      availability, partition tolerance. Observability requires metrics, traces, and logs.
+    metadata:
+      domain: engineering
+      type: methodology
+      topic: software_architecture
+
+  - id: "engineering_materials_fundamentals"
+    content: >
+      Materials Engineering Fundamentals: Material selection balances mechanical properties
+      (tensile strength, yield strength, fatigue limit, fracture toughness), thermal properties
+      (conductivity, coefficient of thermal expansion), and cost. Metals are characterized by
+      crystal structure (BCC, FCC, HCP) and phase diagrams. Polymers exhibit viscoelastic
+      behavior; composites (CFRP, GFRP) offer high stiffness-to-weight ratios. Failure analysis
+      methods include fractography, SEM/EDS, and hardness testing. Finite Element Analysis
+      (FEA) predicts stress distributions. Standards bodies include ASTM, ISO, ASME, and AISI.
+      Additive manufacturing (3D printing) enables complex geometries impossible with
+      traditional subtractive machining.
+    metadata:
+      domain: engineering
+      type: fundamentals
+      topic: materials

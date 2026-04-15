@@ -1,0 +1,45 @@
+documents:
+  - id: "legal_research_methodology"
+    content: >
+      Legal Research Methodology: Primary sources include constitutions, statutes, regulations,
+      and case law. Secondary sources include treatises, law review articles, and practice guides.
+      The hierarchy of authority: constitutional provisions supersede statutes, statutes supersede
+      regulations, binding precedent (from controlling courts) supersedes persuasive authority.
+      Key research tools include Westlaw, LexisNexis, Google Scholar, and CourtListener. Shepardizing
+      (Lexis) or KeyCiting (Westlaw) verifies a case is still good law. Legal research must
+      account for jurisdiction (federal vs. state, circuit splits), currency (recent decisions
+      and legislative changes), and scope (issue spotting).
+    metadata:
+      domain: legal
+      type: methodology
+      topic: research
+
+  - id: "legal_contract_fundamentals"
+    content: >
+      Contract Law Fundamentals: A valid contract requires offer, acceptance, consideration,
+      capacity, and legality. Mutual assent requires a meeting of the minds. Consideration must
+      be bargained-for exchange of legal value. Common defenses include lack of capacity (minors,
+      incapacity), duress, undue influence, misrepresentation, and unconscionability. The parol
+      evidence rule limits extrinsic evidence to modify fully integrated written contracts.
+      Breach remedies include compensatory damages (expectation, reliance, restitution),
+      specific performance (unique goods/real estate), and injunctive relief. UCC Article 2
+      governs sale of goods; common law governs services.
+    metadata:
+      domain: legal
+      type: substantive_law
+      topic: contracts
+
+  - id: "legal_ip_overview"
+    content: >
+      Intellectual Property Law Overview: Patents protect inventions (utility, design, plant)
+      for 20 years from filing. Trademarks protect brand identifiers (marks, logos, trade dress)
+      indefinitely with use and renewal. Copyrights protect original works of authorship for
+      life + 70 years (works made for hire: 95 years from publication). Trade secrets protect
+      confidential business information through reasonable security measures. TRIPS Agreement
+      sets international minimums. Patent prosecution involves claims drafting, examination,
+      and prosecution history estoppel. Fair use doctrine limits copyright enforcement for
+      commentary, education, and transformative works.
+    metadata:
+      domain: legal
+      type: substantive_law
+      topic: intellectual_property
