@@ -41,6 +41,11 @@ class TaskStore:
                 self._tasks[task_id]["status"] = status
                 self._tasks[task_id]["result"] = result
 
+    def active_count(self) -> int:
+        """Number of tasks currently in pending or running state."""
+        with self._lock:
+            return sum(1 for t in self._tasks.values() if t["status"] in ("pending", "running"))
+
     def cleanup(self) -> int:
         """Remove expired tasks. Returns number removed."""
         now = time.time()

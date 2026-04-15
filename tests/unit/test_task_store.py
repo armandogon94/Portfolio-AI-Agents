@@ -82,3 +82,38 @@ class TestTaskStore:
         stored = store.get(task_id)
         assert stored["status"] == "pending"
         assert stored["result"] is None
+
+    def test_active_count_pending_and_running(self):
+        """active_count() counts pending and running tasks."""
+        from src.services.task_store import TaskStore
+
+        store = TaskStore()
+        store.create(topic="a", domain=None)
+        id2 = store.create(topic="b", domain=None)
+        store.update(id2, status="running")
+        assert store.active_count() == 2
+
+    def test_active_count_excludes_completed_and_failed(self):
+        """active_count() does not count completed or failed tasks."""
+        from src.services.task_store import TaskStore
+
+        store = TaskStore()
+        id1 = store.create(topic="a", domain=None)
+        id2 = store.create(topic="b", domain=None)
+        store.update(id1, status="completed", result="done")
+        store.update(id2, status="failed", result="error")
+        assert store.active_count() == 0
+
+    def test_metrics_endpoint_includes_active_tasks(self):
+        """GET /metrics includes active_tasks field."""
+        from unittest.mock import patch
+        from fastapi.testclient import TestClient
+
+        with patch("src.middleware.auth.settings") as auth_mock:
+            auth_mock.api_key = None
+            from src.main import app
+            client = TestClient(app)
+            resp = client.get("/metrics")
+
+        assert resp.status_code == 200
+        assert "active_tasks" in resp.json()

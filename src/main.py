@@ -140,7 +140,9 @@ async def unhandled_error_handler(request: Request, exc: Exception):
 @app.get("/metrics")
 async def metrics():
     """Return application metrics. See DECISIONS.md DEC-07."""
-    return metrics_collector.snapshot()
+    data = metrics_collector.snapshot()
+    data["active_tasks"] = task_store.active_count()
+    return data
 
 
 @app.get("/health", response_model=HealthResponse)
