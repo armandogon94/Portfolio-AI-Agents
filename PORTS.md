@@ -7,6 +7,7 @@
 | Service | Host Port | Container Port | File |
 |---------|-----------|---------------|------|
 | Chainlit UI | **3060** | 3060 | docker-compose.dev.yml |
+| Next.js Dashboard | **3061** | 3000 | docker-compose.dev.yml (slice-20a) |
 | Agent API (FastAPI) | **8060** | 8000 | docker-compose.dev.yml |
 | Qdrant HTTP | **6333** | 6333 | docker-compose.dev.yml |
 | Qdrant gRPC | **6334** | 6334 | docker-compose.dev.yml |
@@ -24,7 +25,7 @@ If you need to add a new service to this project, pick from these ranges **only*
 | PostgreSQL | Not assigned. If needed, request an assignment in `../PORT-MAP.md`. |
 | Redis | Not assigned. If needed, request an assignment in `../PORT-MAP.md`. |
 
-Available slots: `3061-3069`, `8061-8069`.
+Available slots: `3062-3069`, `8061-8069`.
 
 ## Do Not Use
 

@@ -702,7 +702,7 @@ Turn the now-hardened, feature-rich system (slices 1-18) into a **portfolio-grad
 5. Leave the meeting with a shareable link + PDF of the run.
 6. Re-run the exact same demo deterministically on demand.
 
-**Success looks like:** Armando can open `http://localhost:3070`, pick a `support_triage` workflow, watch a hierarchical crew complete on a live kanban dashboard, copy a share URL for the prospect, and — if `VOICE_ENABLED=true` — have an agent call the prospect's verified phone and read them the summary.
+**Success looks like:** Armando can open `http://localhost:3061`, pick a `support_triage` workflow, watch a hierarchical crew complete on a live kanban dashboard, copy a share URL for the prospect, and — if `VOICE_ENABLED=true` — have an agent call the prospect's verified phone and read them the summary.
 
 ---
 
@@ -717,7 +717,7 @@ Turn the now-hardened, feature-rich system (slices 1-18) into a **portfolio-grad
 - **Voice agent** — Twilio-trial receptionist that can place outbound demo calls with TwiML webhooks
 - **Share + PDF** — HMAC-signed 7-day read-only link, WeasyPrint PDF export
 - **Demo harness** — `DEMO_MODE=true` deterministic fake LLM + canned scenarios for zero-risk pitches
-- **Next.js 14 dashboard** shipped as a separate docker-compose service on port 3070
+- **Next.js 14 dashboard** shipped as a separate docker-compose service on port 3061
 
 ### Non-Goals (Phase 4)
 
@@ -738,7 +738,7 @@ Turn the now-hardened, feature-rich system (slices 1-18) into a **portfolio-grad
 ```
 ┌──────────────┐     ┌─────────────────────┐      ┌───────────────────┐
 │ Chainlit UI  │     │  Next.js Dashboard  │      │  Twilio (cloud)   │
-│   :3060      │     │      :3070          │      │  (via ngrok)      │
+│   :3060      │     │      :3061          │      │  (via ngrok)      │
 └──────┬───────┘     └──────────┬──────────┘      └─────────┬─────────┘
        │ HTTP +              HTTP + SSE                     │ TwiML webhook
        │ async callback      EventSource                    │ POST
@@ -847,7 +847,7 @@ GET /crew/history/{task_id}/pdf     (auth required)
 # Dashboard (in dashboard/ directory)
 cd dashboard
 npm install
-npm run dev              # http://localhost:3000 (mapped to :3070 in docker)
+npm run dev              # http://localhost:3000 (mapped to :3061 in docker)
 npm run build
 npm test                 # Vitest
 npm run test:e2e         # Playwright against running stack
@@ -998,14 +998,14 @@ This slice is broken into **four** sub-slices (20a, 20b, 20c, 20d) to keep each 
 - `dashboard/e2e/home.spec.ts`
 
 **Files changed:**
-- `docker-compose.dev.yml` — add `dashboard` service: `node:20-alpine`, `working_dir: /app`, volume-mount `./dashboard:/app`, `command: sh -c "npm ci && npm run dev -- --hostname 0.0.0.0"`, port `3070:3000`, `depends_on: [agents-api]`, env `NEXT_PUBLIC_API_URL=http://localhost:8060`.
-- `docker-compose.prod.yml` — add `dashboard` service using the multi-stage Dockerfile, port 3070:3000, health check on `/`.
-- `PORTS.md` — add row `3070` for Dashboard dev (verify no collision with other portfolio projects first).
+- `docker-compose.dev.yml` — add `dashboard` service: `node:20-alpine`, `working_dir: /app`, volume-mount `./dashboard:/app`, `command: sh -c "npm ci && npm run dev -- --hostname 0.0.0.0"`, port `3061:3000`, `depends_on: [agents-api]`, env `NEXT_PUBLIC_API_URL=http://localhost:8060`.
+- `docker-compose.prod.yml` — add `dashboard` service using the multi-stage Dockerfile, port 3061:3000, health check on `/`.
+- `PORTS.md` — add row `3061` for Dashboard dev (verify no collision with other portfolio projects first).
 - `README.md` — add dashboard start instructions.
 
 **Test plan:**
 1. Vitest: `smoke.test.tsx` renders `<Home />` and asserts title "AI Agent Team Dashboard".
-2. Playwright: `home.spec.ts` hits `http://localhost:3070` and checks the title.
+2. Playwright: `home.spec.ts` hits `http://localhost:3061` and checks the title.
 3. Docker: `docker compose -f docker-compose.dev.yml config` validates; `docker compose up` brings all 4 services healthy.
 
 **Acceptance criteria:**
@@ -1014,7 +1014,7 @@ This slice is broken into **four** sub-slices (20a, 20b, 20c, 20d) to keep each 
 - `/` renders "AI Agent Team Dashboard" title.
 
 **Risks & mitigations:**
-- **Port 3070 collision** with another portfolio project. Mitigation: grep `PORTS.md` first; pick next free port if needed.
+- **Port 3061 collision** with another portfolio project. Mitigation: grep `PORTS.md` first; pick next free port if needed.
 - **npm install slow on first dev boot.** Mitigation: `npm ci` + a `node_modules` named volume to persist between restarts.
 
 **Skills:** `frontend-ui-engineering`, `ci-cd-and-automation`, `source-driven-development` (verify create-next-app flags against current docs).
@@ -1037,8 +1037,8 @@ This slice is broken into **four** sub-slices (20a, 20b, 20c, 20d) to keep each 
 - `dashboard/__tests__/history.test.tsx`
 
 **Files changed (backend):**
-- `src/main.py` — add `GET /workflows` (public, no rate limit, returns registry output); widen CORS allow-list to include `http://localhost:3070` when `ENVIRONMENT=development`.
-- `src/config/settings.py` — add `DASHBOARD_ORIGIN: str = "http://localhost:3070"`.
+- `src/main.py` — add `GET /workflows` (public, no rate limit, returns registry output); widen CORS allow-list to include `http://localhost:3061` when `ENVIRONMENT=development`.
+- `src/config/settings.py` — add `DASHBOARD_ORIGIN: str = "http://localhost:3061"`.
 
 **Test plan (RED):**
 1. Vitest `launcher.test.tsx` — renders form, MSW-mocks `GET /workflows`, fills form, submits, asserts navigation to `/runs/:id`.
@@ -1049,10 +1049,10 @@ This slice is broken into **four** sub-slices (20a, 20b, 20c, 20d) to keep each 
 **Acceptance criteria:**
 - User can fill the form, click Launch, land on `/runs/{id}`.
 - History table populates from the API; empty state renders when no runs exist.
-- CORS works from port 3070.
+- CORS works from port 3061.
 
 **Risks & mitigations:**
-- **CORS misconfiguration in dev.** Mitigation: explicit `DASHBOARD_ORIGIN` in settings + regression test that sends `Origin: http://localhost:3070` and asserts `Access-Control-Allow-Origin`.
+- **CORS misconfiguration in dev.** Mitigation: explicit `DASHBOARD_ORIGIN` in settings + regression test that sends `Origin: http://localhost:3061` and asserts `Access-Control-Allow-Origin`.
 - **Next.js router hydration mismatch.** Mitigation: launcher form is a client component (`"use client"`); tests use `userEvent` not direct DOM.
 
 **Skills:** `frontend-ui-engineering`, `api-and-interface-design`, `test-driven-development`.
@@ -1079,7 +1079,7 @@ This slice is broken into **four** sub-slices (20a, 20b, 20c, 20d) to keep each 
 4. Playwright `live-run.spec.ts` — launches a real run in `DEMO_MODE=true` (deterministic), opens the run page, asserts a full `queued → active → done` sequence for the research-report workflow.
 
 **Acceptance criteria:**
-- Opening `http://localhost:3070/runs/{id}` during a live crew run shows cards animating across columns in real time.
+- Opening `http://localhost:3061/runs/{id}` during a live crew run shows cards animating across columns in real time.
 - SSE reconnects automatically after a transient network blip (within 5s).
 - Playwright E2E passes in CI.
 
@@ -1489,7 +1489,7 @@ For each Phase 4 slice, follow the v2 protocol **verbatim** (Step 1 `/plan` the 
 | Share link leaks sensitive run data | Medium | Whitelisted render (test 4 in slice 27); rotating secret | Slice 27 |
 | Fake LLM hides production bugs | Low | `DEMO_MODE=false` default; CI runs real tests | Slice 28 |
 | WeasyPrint native deps on Apple Silicon | Low | Documented brew deps in README | Slice 27 |
-| Port 3070 collision | Low | Check PORTS.md before slice 20a | Slice 20a |
+| Port 3061 collision | Low | Check PORTS.md before slice 20a | Slice 20a |
 | SSE buffering through reverse proxy | Low (no proxy in dev) | `X-Accel-Buffering: no` header; no gzip | Slice 19 |
 
 ---
@@ -1499,7 +1499,7 @@ For each Phase 4 slice, follow the v2 protocol **verbatim** (Step 1 `/plan` the 
 - [ ] Slices 19-28 implemented, tested, committed on `main` (one commit per slice).
 - [ ] All v2-era tests (152) still green. All new v4 tests green.
 - [ ] `docker compose -f docker-compose.dev.yml up` boots 4 services healthy.
-- [ ] `http://localhost:3070` launcher runs every one of the 7 new workflows end-to-end in `DEMO_MODE=true`.
+- [ ] `http://localhost:3061` launcher runs every one of the 7 new workflows end-to-end in `DEMO_MODE=true`.
 - [ ] Live team view (`/runs/{id}`) shows real-time state for both sequential and parallel workflows.
 - [ ] Share link + PDF export round-trip tested for at least one completed run.
 - [ ] Voice slice unit tests green; opt-in live call round-trip verified manually at least once.

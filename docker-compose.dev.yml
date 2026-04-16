@@ -85,5 +85,31 @@ services:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
+  # Next.js 14+ team-view dashboard (slice-20a, DEC-26)
+  dashboard:
+    image: node:20-alpine
+    container_name: dashboard-dev
+    working_dir: /app
+    ports:
+      - "3061:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8060
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - ./dashboard:/app
+      - dashboard_node_modules:/app/node_modules
+    command: sh -c "npm ci --prefer-offline --no-audit && npm run dev -- --hostname 0.0.0.0"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    depends_on:
+      agents-api:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   qdrant_data:
+  dashboard_node_modules:

@@ -54,6 +54,31 @@ uvicorn src.main:app --reload --port 8060
 
 # 6. Or run the chat UI
 chainlit run src/chainlit_app.py --port 3060
+
+# 7. Or run the live team dashboard (Next.js 14+, slice-20a)
+cd dashboard
+npm install
+npm run dev           # http://localhost:3000 (in Docker: http://localhost:3061)
+```
+
+### Dashboard (Next.js 14+)
+
+The team-view dashboard is a separate app under `dashboard/` with its own `package.json`, Dockerfile, and test pipeline.
+
+```bash
+cd dashboard
+npm install
+npm run dev           # dev server on port 3000 (Docker host: http://localhost:3061)
+npm run build         # production standalone build
+npm test              # Vitest unit tests
+npm run test:e2e      # Playwright E2E (auto-starts the dev server)
+```
+
+Via Docker Compose the dashboard runs as the `dashboard` service alongside Qdrant, the API, and Chainlit:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+# Visit http://localhost:3061
 ```
 
 ### Switch to Cloud (Anthropic)

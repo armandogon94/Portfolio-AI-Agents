@@ -564,7 +564,7 @@ class ErrorResponse(BaseModel):
 
 **Context:** Slice 20 builds the live team-view dashboard. Stack options range from zero-build (htmx + alpine.js as a single HTML file served by FastAPI) to a full SPA framework.
 
-**Decision:** Next.js 14 with the App Router, TypeScript, Tailwind CSS, and shadcn/ui. Runs as a separate docker-compose service (`dashboard`) on port 3070. Python container stays pure.
+**Decision:** Next.js 14 with the App Router, TypeScript, Tailwind CSS, and shadcn/ui. Runs as a separate docker-compose service (`dashboard`) on port 3061. Python container stays pure.
 
 **Alternatives rejected:**
 - **htmx + alpine.js (zero-build)** — ~150 LOC of HTML; keeps repo Python-first with no `node_modules`. Rejected: user explicitly picked polish over minimalism; recruiter/prospect-facing surface justifies the Node footprint.
@@ -602,7 +602,7 @@ class ErrorResponse(BaseModel):
 
 **Context:** Next.js supports Route Handlers that could proxy FastAPI calls (BFF pattern), keeping the API key server-side and shaping responses per page. Alternative: call FastAPI directly from the browser with CORS.
 
-**Decision:** Browser → FastAPI directly. `NEXT_PUBLIC_API_URL` (e.g., `http://localhost:8060`) and `NEXT_PUBLIC_API_KEY` (dev-only) baked in at build time. CORS allow-list widened to include `http://localhost:3070`. For any operation requiring a protected secret (e.g., share token minting), that call still lives in a Next.js Route Handler so the secret never reaches the browser.
+**Decision:** Browser → FastAPI directly. `NEXT_PUBLIC_API_URL` (e.g., `http://localhost:8060`) and `NEXT_PUBLIC_API_KEY` (dev-only) baked in at build time. CORS allow-list widened to include `http://localhost:3061`. For any operation requiring a protected secret (e.g., share token minting), that call still lives in a Next.js Route Handler so the secret never reaches the browser.
 
 **Alternatives rejected:**
 - **Full BFF** — Doubles routes, introduces a second auth hop, and adds latency for no benefit given single-origin deployments.

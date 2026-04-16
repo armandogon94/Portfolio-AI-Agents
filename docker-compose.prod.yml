@@ -91,6 +91,30 @@ services:
       - frontend
     restart: unless-stopped
 
+  # Next.js 14+ team-view dashboard (slice-20a, DEC-26)
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${DASHBOARD_API_URL:-https://agents.305-ai.com}
+    container_name: dashboard
+    depends_on:
+      agents-api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    networks:
+      - frontend
+    restart: unless-stopped
+
 volumes:
   qdrant_data:
 

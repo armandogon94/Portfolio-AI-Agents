@@ -497,12 +497,12 @@ Tasks are sized **S** (1-2 files) or **M** (3-5 files). If a task would touch mo
 ## Slice 20a — Next.js Dashboard scaffold + CI
 
 **Dependencies:** none (new directory).
-**Target commit:** `feat(slice-20a): scaffold next.js dashboard service on port 3070`.
+**Target commit:** `feat(slice-20a): scaffold next.js dashboard service on port 3061`.
 
 ### Tasks
 
 - [ ] **20a.1 — PORTS.md check** (S)
-  - Acceptance: port 3070 free; PORTS.md updated with `3070 → Dashboard (dev)`.
+  - Acceptance: port 3061 free; PORTS.md updated with `3061 → Dashboard (dev)`.
   - Verify: grep PORTS.md across all portfolio projects (if tracked); none collide.
   - Files: `PORTS.md` (edit).
 
@@ -512,12 +512,12 @@ Tasks are sized **S** (1-2 files) or **M** (3-5 files). If a task would touch mo
   - Files: `dashboard/app/*`, `dashboard/package.json`, `dashboard/tsconfig.json`, `dashboard/next.config.js`, `dashboard/tailwind.config.ts`, `dashboard/postcss.config.js`, `dashboard/.eslintrc.json`, `dashboard/.env.example`.
 
 - [ ] **20a.3 — Add Vitest + Playwright configs** (M)
-  - Acceptance: `npm test` runs Vitest; `npm run test:e2e` runs Playwright against `http://localhost:3070`; `vitest.config.ts` + `playwright.config.ts` committed.
+  - Acceptance: `npm test` runs Vitest; `npm run test:e2e` runs Playwright against `http://localhost:3061`; `vitest.config.ts` + `playwright.config.ts` committed.
   - Verify: `cd dashboard && npm test` → 0 tests OK; `npm run test:e2e` → 0 tests OK.
   - Files: `dashboard/vitest.config.ts`, `dashboard/playwright.config.ts`, `dashboard/package.json` (edit scripts), dev-deps install.
 
 - [ ] **20a.4 — RED smoke tests** (S)
-  - Acceptance: `__tests__/smoke.test.tsx` asserts title "AI Agent Team Dashboard"; `e2e/home.spec.ts` asserts same on `http://localhost:3070`. Both initially fail (title not set).
+  - Acceptance: `__tests__/smoke.test.tsx` asserts title "AI Agent Team Dashboard"; `e2e/home.spec.ts` asserts same on `http://localhost:3061`. Both initially fail (title not set).
   - Verify: `npm test && npm run test:e2e` → FAIL.
   - Files: `dashboard/__tests__/smoke.test.tsx`, `dashboard/e2e/home.spec.ts`.
 
@@ -527,7 +527,7 @@ Tasks are sized **S** (1-2 files) or **M** (3-5 files). If a task would touch mo
   - Files: `dashboard/app/layout.tsx`, `dashboard/app/page.tsx`.
 
 - [ ] **20a.6 — docker-compose wiring** (M)
-  - Acceptance: `dashboard` service in `docker-compose.dev.yml` (node:20-alpine, port 3070:3000, volume-mount, `npm ci && npm run dev`, `depends_on: [agents-api]`, env `NEXT_PUBLIC_API_URL=http://localhost:8060`). `docker compose up` brings 4 healthy services.
+  - Acceptance: `dashboard` service in `docker-compose.dev.yml` (node:20-alpine, port 3061:3000, volume-mount, `npm ci && npm run dev`, `depends_on: [agents-api]`, env `NEXT_PUBLIC_API_URL=http://localhost:8060`). `docker compose up` brings 4 healthy services.
   - Verify: `docker compose -f docker-compose.dev.yml config` validates; `docker compose up -d && docker compose ps` → all `healthy`.
   - Files: `docker-compose.dev.yml` (edit).
 
@@ -643,7 +643,7 @@ Tasks are sized **S** (1-2 files) or **M** (3-5 files). If a task would touch mo
 
 ### Checkpoint 20b
 - [ ] Launcher + history live against the real API; E2E green.
-- [ ] CORS test locks in port 3070 origin.
+- [ ] CORS test locks in port 3061 origin.
 
 ---
 
@@ -1003,7 +1003,7 @@ Tasks are sized **S** (1-2 files) or **M** (3-5 files). If a task would touch mo
 | Shareable link leaks raw tool I/O | Medium | Whitelisted fields only; test 27.3 asserts | 27 |
 | WeasyPrint native deps on Apple Silicon | Low | brew install documented in README | 27 |
 | Fixture drift / missing fixtures silently fall back to live LLM | Medium | FakeLLM raises loudly on miss (test 28.1) | 28 |
-| Port 3070 collision with other portfolio project | Low | PORTS.md check task 20a.1 | 20a |
+| Port 3061 collision with other portfolio project | Low | PORTS.md check task 20a.1 | 20a |
 | Local Ollama (qwen3:8b) too slow for Twilio 5s webhook | Medium | Precompute next utterance; fallback TwiML redirects | 26 |
 
 ---
