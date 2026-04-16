@@ -35,3 +35,5 @@ def list_workflows() -> list[Workflow]:
 from src.workflows import research_report  # noqa: E402, F401
 from src.workflows import lead_qualifier  # noqa: E402, F401
 from src.workflows import sdr_outreach  # noqa: E402, F401
+from src.workflows import support_triage  # noqa: E402, F401
+from src.workflows import meeting_prep  # noqa: E402, F401

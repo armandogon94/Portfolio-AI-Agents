@@ -145,3 +145,90 @@ tone_check:
     JSON with keys: picked_variant (one of formal|casual|provocative),
     ratings (map of variant -> per-axis scores), justification (per
     variant), recommended_subject_line.
+
+# --- Slice 24: Support & Ops pack ---
+
+triage_route:
+  description: >
+    Inbound ticket: {topic}
+
+    {prior_context}
+
+    As the triage manager, delegate subtasks to your specialists,
+    then stitch their findings into a unified response plan. Do not
+    answer the ticket yourself — that's the response_writer's job.
+  agent: triage_manager
+  expected_output: >
+    JSON with keys: category (bug|question|feature_request|billing|
+    other), urgency (low|medium|high|critical), suggested_response
+    (final customer-facing reply), kb_sources (list of doc IDs).
+
+kb_search:
+  description: >
+    Search the internal knowledge base for docs relevant to this
+    ticket. Return the top 3 matches with snippet + doc ID + confidence.
+  agent: kb_searcher
+  expected_output: >
+    Bulleted list of up to 3 entries, each with: doc_id, snippet
+    (<=200 chars), confidence (0-1). If no good matches, return an
+    empty list and a one-line reason.
+
+sentiment_analyze:
+  description: >
+    Classify the ticket's urgency and emotion. Flag escalation signals.
+  agent: sentiment_analyst
+  expected_output: >
+    JSON with urgency (low|medium|high|critical), emotion
+    (frustrated|confused|neutral|angry|happy), escalation_flags
+    (list), and a 1-sentence rationale.
+
+response_draft:
+  description: >
+    Using the KB snippets and sentiment signal, draft the customer
+    reply. Cite doc IDs inline; propose concrete next steps; do not
+    promise unshipped features.
+  agent: response_writer
+  expected_output: >
+    A markdown reply ready to send, under 200 words.
+
+attendee_research:
+  description: >
+    Research each attendee listed in: {topic}
+
+    Return a one-line bio + one recent public-signal fact per person
+    (post, news item, hire, product launch within 90 days).
+  agent: attendee_researcher
+  expected_output: >
+    JSON list of {name, title, org, bio, recent_signal, source_url}.
+
+topic_research:
+  description: >
+    Summarize the meeting topic from: {topic}
+
+    {prior_context}
+
+    Pull recent news, internal docs, and industry context. Surface
+    up to 3 contested angles worth addressing. End with 3 must-cover
+    questions.
+  agent: topic_researcher
+  expected_output: >
+    JSON with keys: summary (1 paragraph), contested_angles (list),
+    must_cover_questions (list of 3), sources (URLs).
+
+build_agenda:
+  description: >
+    Using the attendee briefs and topic summary, produce a time-boxed
+    meeting agenda. Assume 30 minutes unless the topic specifies
+    otherwise. Put must-cover questions first.
+  agent: agenda_writer
+  expected_output: >
+    Markdown agenda with numbered items, each with a time allocation
+    and owner (where implied by the topic).
+
+build_talking_points:
+  description: >
+    Turn each agenda item into 2-3 bullet talking points the chair
+    can read on screen. No jargon, no hedge words.
+  agent: talking_points_writer
+  expected_output: >
+    Markdown list: agenda item headers each followed by 2-3 bullets.
