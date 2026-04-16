@@ -37,3 +37,5 @@ from src.workflows import lead_qualifier  # noqa: E402, F401
 from src.workflows import sdr_outreach  # noqa: E402, F401
 from src.workflows import support_triage  # noqa: E402, F401
 from src.workflows import meeting_prep  # noqa: E402, F401
+from src.workflows import content_pipeline  # noqa: E402, F401
+from src.workflows import real_estate_cma  # noqa: E402, F401

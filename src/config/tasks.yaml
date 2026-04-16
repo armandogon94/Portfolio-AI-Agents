@@ -232,3 +232,96 @@ build_talking_points:
   agent: talking_points_writer
   expected_output: >
     Markdown list: agenda item headers each followed by 2-3 bullets.
+
+# --- Slice 25: Content + Real Estate pack ---
+
+content_outline:
+  description: >
+    Using the upstream research notes, produce an article outline for
+    the topic: {topic}
+
+    Include a hook paragraph, 3-5 H2 sections each with 2-3 H3
+    sub-points, and a closing call-to-action.
+  agent: outliner
+  expected_output: >
+    Markdown outline: hook paragraph, H2s with H3s, closing CTA.
+
+content_draft:
+  description: >
+    Draft the full article from the outline.
+
+    Hit the target reading level in the topic metadata (default: 8th
+    grade). Cite the research notes inline.
+  agent: writer
+  expected_output: >
+    Markdown article body — ~1000 words unless topic specifies
+    otherwise.
+
+content_edit:
+  description: >
+    Edit the draft for clarity, voice, and factual alignment with the
+    research. Cut jargon, split sentences over 25 words, flag any
+    claim not sourced in the research.
+  agent: editor
+  expected_output: >
+    The edited markdown body plus a short "editor's notes" section
+    listing flagged claims (if any).
+
+content_seo:
+  description: >
+    Produce SEO metadata and on-page suggestions for the edited draft.
+  agent: seo_optimizer
+  expected_output: >
+    JSON with keys: title (<=60 chars), meta_description (<=155
+    chars), slug, readability_score (Flesch 0-100), seo_suggestions
+    (list of 3-5 concrete improvements).
+
+comps_gather:
+  description: >
+    Find 3-5 recent comparable sales for the subject property: {topic}
+
+    {prior_context}
+
+    Stay within a reasonable radius and price band. For each comp
+    return: address, sale_price, sale_date, square_feet, beds, baths,
+    adjustments_rationale, source_url.
+  agent: comps_gatherer
+  expected_output: >
+    JSON list of comparable-sale objects matching the schema above.
+
+market_analyze:
+  description: >
+    Describe the local market for the subject property: {topic}
+
+    Surface days-on-market, list-to-sale ratio, months of inventory,
+    and year-over-year price delta. Note whether the market is
+    buyer/neutral/seller.
+  agent: market_analyst
+  expected_output: >
+    JSON with days_on_market, list_to_sale_ratio, months_inventory,
+    yoy_price_delta (percent), market_tilt (buyer|neutral|seller),
+    and a 1-paragraph narrative.
+
+appraise:
+  description: >
+    Combine the comps data and market context into an estimated
+    value range for the subject property.
+
+    Use the comps for the indicated value; use the market trend to
+    compute a forward adjustment. Always label the output as a
+    computer-generated estimate (not a licensed appraisal).
+  agent: appraiser
+  expected_output: >
+    JSON with keys: subject_property, indicated_value_from_comps,
+    market_adjustment_pct, estimated_value_range {low, high},
+    confidence (0-1), disclaimer.
+
+cma_report:
+  description: >
+    Write a client-facing CMA report from the comps, market
+    narrative, and appraised range. Keep it under 600 words and end
+    with the disclaimer.
+  agent: report_writer
+  expected_output: >
+    Markdown CMA report with sections: Summary, Comparables, Market,
+    Estimated Value, Disclaimer.
