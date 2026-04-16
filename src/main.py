@@ -12,7 +12,7 @@ from slowapi.util import get_remote_address
 import httpx
 
 from src.config.settings import Environment, settings
-from src.exceptions import AppError, NotFoundError
+from src.exceptions import AppError, NotFoundError, ValidationError
 from src.services.ingest_service import IngestService, _validate_url
 from src.services.metrics import MetricsCollector
 from src.services.sqlite_store import SQLiteResultStore
@@ -23,6 +23,7 @@ from src.middleware.auth import ApiKeyMiddleware
 from src.middleware.metrics import MetricsMiddleware
 from src.middleware.request_id import RequestIdMiddleware
 from src.utils.logger import setup_logging
+from src.workflows import get_workflow, list_workflows
 from src.models.schemas import (
     AgentStateEvent,
     CrewAsyncResponse,
@@ -36,6 +37,7 @@ from src.models.schemas import (
     TaskStatusResponse,
     UrlIngestRequest,
     UrlIngestResponse,
+    WorkflowInfo,
 )
 
 setup_logging()
@@ -179,7 +181,12 @@ def _ts_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
+def _execute_crew(
+    task_id: str,
+    topic: str,
+    domain: str | None,
+    workflow: str = "research_report",
+) -> None:
     """Background task that runs the crew and updates the task store."""
     import time
 
@@ -188,7 +195,7 @@ def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
         task_id,
         AgentStateEvent(
             task_id=task_id, agent_role="crew", state="active",
-            detail="crew started", ts=_ts_now(),
+            detail=f"crew started (workflow={workflow})", ts=_ts_now(),
         ),
     )
     try:
@@ -196,7 +203,9 @@ def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
 
         task_store.update(task_id, status="running")
         start = time.monotonic()
-        result = run_crew(topic=topic, domain=domain, task_id=task_id)
+        result = run_crew(
+            topic=topic, domain=domain, task_id=task_id, workflow_name=workflow
+        )
         duration = time.monotonic() - start
         task_store.update(task_id, status="completed", result=result)
         sqlite_store.save(
@@ -243,12 +252,45 @@ def _execute_crew(task_id: str, topic: str, domain: str | None) -> None:
 @limiter.limit("5/minute")
 async def run_crew_async(request: Request, body: CrewRequest, background_tasks: BackgroundTasks):
     """Submit a crew execution job. Returns 202 with task_id for polling."""
+    # Validate workflow name against the registry before queueing (slice-21).
+    try:
+        get_workflow(body.workflow)
+    except KeyError:
+        raise ValidationError(
+            f"Unknown workflow: {body.workflow!r}. Call GET /workflows to list available workflows."
+        )
     if body.webhook_url:
         _validate_url(body.webhook_url)  # raises ValidationError for private IPs / bad schemes
-    logger.info(f"Queuing crew: topic='{body.topic}', domain={body.domain}")
+    logger.info(
+        f"Queuing crew: topic='{body.topic}', domain={body.domain}, workflow={body.workflow}"
+    )
     task_id = task_store.create(topic=body.topic, domain=body.domain, webhook_url=body.webhook_url)
-    background_tasks.add_task(_execute_crew, task_id, body.topic, body.domain)
+    background_tasks.add_task(
+        _execute_crew, task_id, body.topic, body.domain, body.workflow
+    )
     return CrewAsyncResponse(task_id=task_id)
+
+
+@app.get("/workflows", response_model=list[WorkflowInfo])
+async def list_workflow_registry():
+    """List all registered crew-workflow templates (slice-21, DEC-18).
+
+    Public (no auth); read-only. Consumed by the Next.js dashboard launcher.
+    """
+    return [
+        WorkflowInfo(
+            name=w.name,
+            description=w.description,
+            process=w.process,
+            agent_roles=list(w.agent_roles),
+            task_names=list(w.task_names),
+            parallel_tasks=(
+                [list(g) for g in w.parallel_tasks] if w.parallel_tasks else None
+            ),
+            inputs_schema=dict(w.inputs_schema),
+        )
+        for w in list_workflows()
+    ]
 
 
 @app.get("/crew/status/{task_id}", response_model=TaskStatusResponse)

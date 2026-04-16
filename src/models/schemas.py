@@ -30,6 +30,14 @@ class CrewRequest(BaseModel):
         None,
         description="Industry domain (healthcare, finance, real_estate). None for general.",
     )
+    workflow: str = Field(
+        "research_report",
+        max_length=64,
+        description=(
+            "Workflow name from GET /workflows. Defaults to 'research_report' "
+            "for backward compat with v1-v3 callers (slice-21)."
+        ),
+    )
     webhook_url: str | None = Field(
         None,
         max_length=2048,
@@ -108,6 +116,18 @@ class RunHistoryEntry(BaseModel):
 class RunHistoryResponse(BaseModel):
     runs: list[RunHistoryEntry]
     count: int
+
+
+class WorkflowInfo(BaseModel):
+    """Public shape of a registered workflow returned by GET /workflows (slice-21)."""
+
+    name: str
+    description: str
+    process: str
+    agent_roles: list[str]
+    task_names: list[str]
+    parallel_tasks: list[list[str]] | None = None
+    inputs_schema: dict[str, str] = Field(default_factory=dict)
 
 
 class ErrorResponse(BaseModel):

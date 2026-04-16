@@ -15,7 +15,8 @@ from src.config.settings import settings
 # Paths that never require authentication.
 # /docs, /redoc, /openapi.json are public in development only —
 # they are disabled (docs_url=None) in production (see main.py I9).
-PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc"}
+# /workflows is a read-only registry lookup used by the dashboard launcher (slice-21).
+PUBLIC_PATHS = {"/health", "/docs", "/openapi.json", "/redoc", "/workflows"}
 
 
 class ApiKeyMiddleware(BaseHTTPMiddleware):

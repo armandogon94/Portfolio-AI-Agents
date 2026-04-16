@@ -6,6 +6,25 @@ from unittest.mock import MagicMock, patch
 
 @pytest.mark.unit
 class TestBuildCrewStepCallback:
+    def _stub_factories(self, MockAgentFactory, MockTaskFactory):
+        """Plant dict-shaped mocks matching the research_report workflow (slice-21)."""
+        mock_agents = {
+            "researcher": MagicMock(),
+            "analyst": MagicMock(),
+            "writer": MagicMock(),
+            "validator": MagicMock(),
+        }
+        MockAgentFactory.return_value.create_all.return_value = mock_agents
+        MockTaskFactory.return_value.tasks_config = {
+            "research": {"agent": "researcher"},
+            "analysis": {"agent": "analyst"},
+            "writing": {"agent": "writer"},
+            "validation": {"agent": "validator"},
+        }
+        MockTaskFactory.return_value.create.side_effect = (
+            lambda task_name, agent: MagicMock(name=f"task_{task_name}")
+        )
+
     def test_build_crew_accepts_step_callback(self):
         """build_crew passes step_callback to Crew constructor."""
         callback = MagicMock()
@@ -14,11 +33,7 @@ class TestBuildCrewStepCallback:
              patch("src.crew.TaskFactory") as MockTaskFactory, \
              patch("src.crew.Crew") as MockCrew:
 
-            mock_agents = {"researcher": MagicMock(), "analyst": MagicMock(),
-                           "writer": MagicMock(), "validator": MagicMock()}
-            MockAgentFactory.return_value.create_all.return_value = mock_agents
-            MockTaskFactory.return_value.create_all.return_value = [MagicMock()]
-
+            self._stub_factories(MockAgentFactory, MockTaskFactory)
             from src.crew import build_crew
 
             build_crew(domain=None, step_callback=callback)
@@ -32,11 +47,7 @@ class TestBuildCrewStepCallback:
              patch("src.crew.TaskFactory") as MockTaskFactory, \
              patch("src.crew.Crew") as MockCrew:
 
-            mock_agents = {"researcher": MagicMock(), "analyst": MagicMock(),
-                           "writer": MagicMock(), "validator": MagicMock()}
-            MockAgentFactory.return_value.create_all.return_value = mock_agents
-            MockTaskFactory.return_value.create_all.return_value = [MagicMock()]
-
+            self._stub_factories(MockAgentFactory, MockTaskFactory)
             from src.crew import build_crew
 
             build_crew(domain=None)
