@@ -47,3 +47,101 @@ validation:
   expected_output: >
     Quality assessment with specific corrections, improvement
     suggestions, and a final quality score (1-10).
+
+# --- Slice 23: Sales pack ---
+
+lead_research:
+  description: >
+    Research the prospect company/lead: {topic}
+
+    {prior_context}
+
+    Gather public signals (employee count, funding stage, tech stack,
+    recent news, leadership profile). Prefer primary sources. Include
+    citations as URLs in your notes.
+  agent: researcher
+  expected_output: >
+    A bulleted research dossier with explicit fields: company_name,
+    employee_count, funding_stage, tech_stack, recent_news, leadership,
+    and a "sources" list of URLs.
+
+lead_scoring:
+  description: >
+    Score the prospect against the ICP rubric using the research dossier.
+
+    Rubric criteria and weights are FIXED and provided by the workflow.
+    For each criterion, emit a 0-10 sub-score with a one-line
+    evidence citation. Compute the weighted total as a 0-100 number.
+    Do not invent criteria and do not weight differently.
+  agent: scorer
+  expected_output: >
+    JSON object with keys: score (0-100), criteria (list of
+    {criterion, sub_score_0_10, weight, evidence}), reasoning,
+    recommended_next_action.
+
+lead_report:
+  description: >
+    Write a one-page sales brief from the scored lead.
+
+    Structure: Executive summary (3 sentences), Why they fit, Why they
+    might not, Recommended next action, Evidence links.
+  agent: report_writer
+  expected_output: >
+    A markdown brief following the structure above, under 400 words.
+
+persona_research:
+  description: >
+    Research the persona described by the target: {topic}
+
+    {prior_context}
+
+    Produce a persona sketch with goals, top 3 pains, likely
+    objections, and 2 concrete hooks (recent event, shared interest,
+    tech stack match) an SDR could use. Cite sources.
+  agent: persona_researcher
+  expected_output: >
+    Markdown persona sketch with the sections Goals, Pains, Objections,
+    Hooks, Sources.
+
+draft_formal:
+  description: >
+    Using the persona sketch, draft a FORMAL outbound email.
+
+    Constraints: 90-120 words, professional greeting, single CTA,
+    no emojis, no exclamation marks. Use the persona's hooks.
+  agent: copywriter_formal
+  expected_output: >
+    The full email as markdown with a subject line followed by the body.
+
+draft_casual:
+  description: >
+    Using the persona sketch, draft a CASUAL outbound email.
+
+    Constraints: 60-90 words, peer-to-peer tone, contractions allowed,
+    ask one specific question. No emojis.
+  agent: copywriter_casual
+  expected_output: >
+    The full email as markdown with a subject line followed by the body.
+
+draft_provocative:
+  description: >
+    Using the persona sketch, draft a PROVOCATIVE outbound email.
+
+    Constraints: 50-80 words, lead with a non-consensus observation
+    about the prospect's industry, end with a "disagree?" style CTA.
+    Polite, never insulting.
+  agent: copywriter_provocative
+  expected_output: >
+    The full email as markdown with a subject line followed by the body.
+
+tone_check:
+  description: >
+    Compare the three drafts (formal, casual, provocative) and pick
+    the best variant for this persona. Rate each on clarity, persona
+    fit, CTA strength, and reply-likelihood (0-10 each). Name the
+    winner and give a one-line justification per variant.
+  agent: tone_checker
+  expected_output: >
+    JSON with keys: picked_variant (one of formal|casual|provocative),
+    ratings (map of variant -> per-axis scores), justification (per
+    variant), recommended_subject_line.

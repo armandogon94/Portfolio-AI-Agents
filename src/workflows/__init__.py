@@ -33,3 +33,5 @@ def list_workflows() -> list[Workflow]:
 # Auto-register built-in workflows. Keep imports at the bottom to avoid
 # circular imports — each module calls register_workflow() at import time.
 from src.workflows import research_report  # noqa: E402, F401
+from src.workflows import lead_qualifier  # noqa: E402, F401
+from src.workflows import sdr_outreach  # noqa: E402, F401

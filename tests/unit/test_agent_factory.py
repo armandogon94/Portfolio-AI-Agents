@@ -67,11 +67,12 @@ class TestAgentFactory:
                 factory = AgentFactory()
                 agents = factory.create_all()
 
-                assert len(agents) == 4
-                assert "researcher" in agents
-                assert "analyst" in agents
-                assert "writer" in agents
-                assert "validator" in agents
+                # Canonical v1 roles must always be present.
+                for role in ("researcher", "analyst", "writer", "validator"):
+                    assert role in agents, f"{role} missing from agent factory output"
+                # New workflow packs (slice-23+) add more roles; the factory
+                # must produce all entries from agents.yaml without crashing.
+                assert len(agents) >= 4
 
     def test_agent_factory_with_domain(self):
         """AgentFactory applies domain overrides."""
