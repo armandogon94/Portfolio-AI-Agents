@@ -343,3 +343,313 @@ class ErrorResponse(BaseModel):
 - Works for ~90% of web content (static HTML, server-rendered pages, PDFs).
 - Does not work for JavaScript-rendered SPAs (e.g., React/Vue apps without SSR).
 - Rate limited to 10/minute per IP to prevent abuse of outbound HTTP.
+
+---
+
+# Phase 4 — Portfolio Demos (v4.0)
+
+> Decisions DEC-16..DEC-28 made during the plan-mode brainstorm on 2026-04-16. Source plan: `~/.claude/plans/analyze-the-current-state-temporal-quilt.md`. Corresponding SPEC section: SPEC.md § "Phase 4 — Portfolio Demos".
+
+---
+
+## DEC-16: SSE for live agent events (not WebSocket)
+
+**Status:** Accepted
+
+**Context:** Slice 19 needs to push per-agent state updates from the FastAPI process to browser clients (the new Next.js dashboard and, later, Chainlit nested steps). The channel has one producer (the crew run) and one-or-more browser consumers; consumers never push back on the same channel.
+
+**Decision:** Use Server-Sent Events (SSE) on `GET /crew/run/{task_id}/events`. Each event has an `event:` type (`agent_state`, `run_complete`, `run_failed`, heartbeat comment) and a JSON `data:` payload. `text/event-stream` content type, `X-Accel-Buffering: no` header.
+
+**Alternatives rejected:**
+- **WebSocket** — Bidirectional, but we don't need client-to-server messages on this channel. Adds handshake complexity, requires protocol-aware proxies, and there is no native browser `WebSocket` auto-reconnect (EventSource has it for free).
+- **Long-polling** — Works without a streaming stack, but each response round-trip burns a full HTTP handshake; the event cadence during an active crew run is high enough (5-30 events/s) that polling starves on its own overhead.
+- **Push via webhook** — Works for server-to-server (slice 18 already uses it), not for browsers.
+
+**Consequences:**
+- Browser side uses the native `EventSource` API with automatic reconnection.
+- Works cleanly through uvicorn; no extra dep.
+- Unidirectional — any future "agent accepts user input mid-run" feature would need a second channel (likely a simple POST endpoint, not a full WebSocket switch).
+- SSE connections count against the rate limiter (mitigated by exempting `/crew/run/*/events` or using a high limit).
+
+---
+
+## DEC-17: Separate dashboard app (not Chainlit-only)
+
+**Status:** Accepted
+
+**Context:** The "team view" vision (prospects watching agents work in a live kanban) could live inside Chainlit as nested `cl.Step`s, or in a separate app. Chainlit is designed around chat; adding dense operational UI (columns, cards with state chips, timeline strips) fights its default message-oriented layout.
+
+**Decision:** Ship a separate dashboard app (slice 20) as a new docker-compose service. Chainlit remains the operator/chat surface and gets nested-step upgrades but doesn't try to become a dashboard.
+
+**Alternatives rejected:**
+- **Chainlit-only upgrade** — Simpler (no new service) but caps demo polish; Chainlit's left-rail message layout isn't built for kanban columns or timeline strips, and custom elements are limited.
+- **One unified SPA that replaces Chainlit** — Throws out working, tested Chainlit code; multiplies the cost of this cycle.
+
+**Consequences:**
+- Two surfaces, two audiences: Chainlit for hands-on operators (you, while testing), dashboard for pitch meetings and stakeholder review.
+- New docker-compose service (slightly more to maintain).
+- Information density and UX can be tailored per audience without compromise.
+
+---
+
+## DEC-18: Workflows as Python files, not YAML
+
+**Status:** Accepted
+
+**Context:** Slice 21 introduces a workflow registry. Each business workflow is a named assembly of agents + tasks + process + (optional) parallel/hierarchical config. This could live in YAML alongside `agents.yaml` and `tasks.yaml`, or in Python modules.
+
+**Decision:** Workflows are Python files in `src/workflows/<name>.py`, each exporting a `Workflow` dataclass instance and auto-registering via `__init__.py`. Agents remain YAML-defined (`agents.yaml`), as do their generic task templates (`tasks.yaml`) when reusable.
+
+**Alternatives rejected:**
+- **Pure YAML workflows** — Works for simple pipelines, fails when tasks need parameterized prompts, conditional wiring, or references to Python-level tool instances. YAML also hides type errors until runtime.
+- **Jinja-templated YAML** — Solves parameterization but introduces a templating layer that obscures logic; tests become harder to write; not reusable.
+- **Database-stored workflows** — Overkill; workflows change rarely and are code-reviewed when they do.
+
+**Consequences:**
+- Workflows are importable, type-checked, and unit-testable (each file gets its own `test_<name>_workflow.py`).
+- New workflows are PRs, not config pushes — acceptable for this project's scope.
+- Agents stay declarative in YAML, preserving DEC-13's migration path.
+
+---
+
+## DEC-19: Hierarchical process is opt-in per workflow
+
+**Status:** Accepted
+
+**Context:** DEC-13 disabled delegation at the agent level because CrewAI's sequential process crashed when agents tried to delegate. Phase 4 wants hierarchical behavior for workflows where it makes sense (e.g., `support_triage`'s manager delegating to specialists).
+
+**Decision:** `allow_delegation` defaults to `False` (DEC-13 stands). A workflow may opt in by declaring `process: "hierarchical"` and specifying `manager_agent`. Only in that case does `build_crew` enable delegation on participating agents.
+
+**Alternatives rejected:**
+- **All workflows hierarchical** — Doubles coordination cost (manager LLM calls) for workflows that don't need it.
+- **All workflows sequential** — Loses the "manager delegates to subagents" demo surface that differentiates v4.0 from v3.0.
+- **Per-agent `allow_delegation` flag in YAML** — Conflates workflow-level process with agent-level capability; a given agent may act as a lead in one workflow and a specialist in another.
+
+**Consequences:**
+- `research_report` (default) and most sequential workflows keep their fast, predictable behavior.
+- `support_triage` gets real manager-delegates-to-specialist dynamics that show up in the live dashboard as hierarchical state transitions.
+- Slice 22 test locks in that sequential workflows retain `allow_delegation=False`.
+
+---
+
+## DEC-20: Explicit parallel tasks via `async_execution=True`
+
+**Status:** Accepted
+
+**Context:** Workflows like `meeting_prep` and `real_estate_cma` have independent subtasks that could run concurrently. CrewAI supports `Task(async_execution=True)`, which returns a Future; subsequent sequential tasks await it.
+
+**Decision:** Workflows declare `parallel_tasks: list[list[str]] | None`; each inner list is a concurrent group, groups run sequentially. Tasks in a concurrent group are built with `async_execution=True`.
+
+**Alternatives rejected:**
+- **Full DAG support** — More expressive but complicates UI (the kanban already struggles with non-linear dependencies); we don't need it yet.
+- **Always sequential** — Forfeits real "waiting_on_agent" semantics, which is the entire point of the live team view.
+- **Fork/join only at the workflow boundary** — Not flexible enough; `meeting_prep` needs two parallel-then-sequential-then-parallel patterns.
+
+**Consequences:**
+- `AgentStateBus` can legitimately emit `waiting_on_agent` events when a downstream task is blocked on parallel-group completion.
+- Dashboard can show multiple `active` cards simultaneously (the "wow" moment).
+- Workflows express exactly what's parallelizable; nothing is inferred.
+
+---
+
+## DEC-21: Twilio trial as the voice provider
+
+**Status:** Accepted
+
+**Context:** Slice 26 wants a free-tier API that can place outbound calls from a Python backend for demos. Options investigated: Twilio, Vonage, Telnyx, Plivo, SignalWire, self-hosted Asterisk/FreeSWITCH.
+
+**Decision:** Use Twilio trial. Free ~$15.50 credit, free US inbound number, cleanest Python SDK, `<Gather input="speech">` provides built-in TTS + STT so no separate speech pipeline is needed for the demo. Telnyx documented as the pay-as-you-go fallback but not wired in v4.0.
+
+**Alternatives rejected:**
+- **Telnyx pay-as-you-go** — Cheapest per-minute but requires funding + ID verification before calling; higher friction for day-1 demos.
+- **Vonage, Plivo** — Smaller trial credits, less-polished SDKs.
+- **SignalWire** — Trial now requires credit card upfront.
+- **Self-hosted Asterisk/FreeSWITCH** — Still needs a paid SIP trunk to reach PSTN; multi-hour setup.
+
+**Consequences:**
+- Twilio trial limits calls to *verified numbers* and prepends a trial-account message — fine for demos.
+- Requires signup (Armando's task, external to the build).
+- When trial credit runs out, the migration path to Telnyx is TwiML-compatible: minimal code changes (see DEC-21 fallback note in slice 26).
+- Compliance constraint: TCPA (US). See DEC-22.
+
+---
+
+## DEC-22: Voice disabled by default (`VOICE_ENABLED=false`)
+
+**Status:** Accepted
+
+**Context:** Outbound voice calls carry real risks (TCPA statutory damages, trial credit burn, accidental spam during testing) that don't apply to the rest of the system. CI must never place a call.
+
+**Decision:** Add `VOICE_ENABLED: bool = False` to settings. The `VoiceCallTool` checks this flag and raises `VoiceDisabledError` if anyone tries to dial while it's false. Additionally, a `TWILIO_VERIFIED_TO_NUMBERS` whitelist rejects dial targets that aren't pre-approved. `POST /crew/run workflow=receptionist voice.to=…` validates against the whitelist before starting execution.
+
+**Alternatives rejected:**
+- **Always on** — Trivial to cause accidental calls during test runs or fat-finger API hits.
+- **On in dev, off in prod** — Inverts the risk (dev is where accidents happen).
+- **Whitelist only, no kill-switch** — Whitelist could drift; an env-level kill switch gives Armando one toggle to make the entire voice layer inert.
+
+**Consequences:**
+- `make test` and CI never dial even if Twilio creds are present.
+- Armando opts in per demo: `VOICE_ENABLED=true` + ngrok + ensure destination number is in the whitelist.
+- Unit tests use mocked Twilio client; integration tests marked `@pytest.mark.voice` and opt-in only.
+- README and `docs/demos/voice.md` have TCPA notices and the 15-minute first-call setup.
+
+---
+
+## DEC-23: WeasyPrint for PDF export
+
+**Status:** Accepted
+
+**Context:** Slice 27 needs to turn a completed run into a downloadable PDF. Options: WeasyPrint (pure-Python HTML/CSS → PDF), wkhtmltopdf (legacy, deprecated upstream), reportlab (imperative API), Puppeteer (headless Chromium).
+
+**Decision:** Use WeasyPrint. Renders a Jinja-templated HTML file to PDF, supports modern CSS sufficient for our report layout.
+
+**Alternatives rejected:**
+- **wkhtmltopdf** — Deprecated; security-unmaintained.
+- **reportlab** — Imperative; verbose; poor HTML fidelity.
+- **Puppeteer / Playwright** — Brings a full browser into the container (~150 MB+); overkill for a report.
+
+**Consequences:**
+- Adds native-library deps (`pango`, `cairo`, `gdk-pixbuf`). Documented brew installs for Apple Silicon dev; apt installs for the Docker image.
+- Report template lives in `src/templates/run_report.html`; easy to iterate.
+- No client-side dependency — PDF is server-rendered and served via `GET /crew/history/{task_id}/pdf`.
+
+---
+
+## DEC-24: Signed shareable link (HMAC + 7-day TTL)
+
+**Status:** Accepted
+
+**Context:** A prospect in a pitch should be able to get a URL to a completed run, open it on their phone after the meeting, and show their team — without us provisioning accounts or exposing the whole history API.
+
+**Decision:** Mint signed tokens via HMAC-SHA256 over `task_id + "|" + exp_unix` using `SHARE_SECRET`. Token encodes `task_id:exp_unix:sig`, base64url. `GET /share/{token}` verifies signature and expiry, then renders a whitelist of fields. TTL 7 days, fixed. Rotating `SHARE_SECRET` invalidates all outstanding tokens (manual revocation).
+
+**Alternatives rejected:**
+- **Per-user accounts + per-link ACL** — Overkill; portfolio project has no user model.
+- **Random token with DB lookup** — Requires a `share_tokens` table and revocation bookkeeping; statelessness is preferable.
+- **No sharing** — Prospects leave without a leave-behind; lost asset.
+- **Longer TTL (30+ days)** — Shared links age poorly (LLM outputs embarrass over time); 7 days is a deliberate forcing function.
+
+**Consequences:**
+- Stateless — no DB roundtrip to verify.
+- Revocation is coarse (rotate secret → invalidates everything) but acceptable.
+- Whitelisted fields only in the rendered HTML (no raw tool I/O, no env config, no webhook URLs).
+- `SHARE_SECRET` is a required env in production; auto-generated in dev with a warning so Armando notices.
+
+---
+
+## DEC-25: Deterministic fake LLM under `DEMO_MODE=true`
+
+**Status:** Accepted
+
+**Context:** A live pitch cannot depend on Ollama mood, network weather, or LLM hallucination. Prospects notice a stumbling demo.
+
+**Decision:** Add `DEMO_MODE=true` env flag. When set, `LLMFactory.create()` returns a `FakeLLM` that serves responses from `src/demo/fixtures/<scenario>/<agent_role>.md`, keyed by `(workflow, topic, agent_role, task_index)`. Missing fixtures raise loudly.
+
+**Alternatives rejected:**
+- **Always-live** — Unreliable under demo conditions.
+- **HTTP fixture cassettes (vcr.py)** — More general but couples demo reliability to the exact request shapes the LLM layer sends; fragile across CrewAI version bumps.
+- **Pre-recorded video** — Works but kills interactivity; defeats the point of a live demo.
+
+**Consequences:**
+- Demos are byte-identical across runs, on any machine.
+- Fixtures live in git (reviewable); drift is explicit, not silent.
+- `DEMO_MODE=false` is default; CI exercises real LLM paths.
+- Maintenance cost: each new workflow (23-25) adds one fixture set to `src/demo/fixtures/` during its slice.
+
+---
+
+## DEC-26: Next.js 14 (App Router, TS, Tailwind, shadcn/ui) for the dashboard
+
+**Status:** Accepted
+
+**Context:** Slice 20 builds the live team-view dashboard. Stack options range from zero-build (htmx + alpine.js as a single HTML file served by FastAPI) to a full SPA framework.
+
+**Decision:** Next.js 14 with the App Router, TypeScript, Tailwind CSS, and shadcn/ui. Runs as a separate docker-compose service (`dashboard`) on port 3070. Python container stays pure.
+
+**Alternatives rejected:**
+- **htmx + alpine.js (zero-build)** — ~150 LOC of HTML; keeps repo Python-first with no `node_modules`. Rejected: user explicitly picked polish over minimalism; recruiter/prospect-facing surface justifies the Node footprint.
+- **Svelte/SvelteKit** — Excellent fit for the animation-heavy live view, but smaller ecosystem, less familiar to reviewers.
+- **Plain React (no framework)** — Loses file-based routing and app-dir conventions that make the code easy to navigate.
+- **Vue/Nuxt** — Fine, but React is the lingua franca for portfolio dashboards.
+
+**Consequences:**
+- Repo now has two dev stacks (Python + Node); docker-compose abstracts this — `docker compose up` is still the one-command dev loop.
+- Build/test pipeline grows: `npm install`, `npm test` (Vitest), `npm run test:e2e` (Playwright) in `dashboard/`.
+- Portfolio surface is notably prettier (Tailwind, shadcn, Framer Motion transitions).
+- Multi-stage `Dockerfile` keeps production image lean (~150 MB for Node 20 Alpine + built static).
+
+### DEC-26a: shadcn/ui + Tailwind (no component-library lock-in)
+
+**Status:** Accepted
+
+**Context:** With Next.js chosen, the dashboard needs a component toolkit. Options: MUI, Chakra, shadcn/ui, DaisyUI, handrolled with Tailwind.
+
+**Decision:** shadcn/ui + Tailwind + `lucide-react` for icons. shadcn primitives are copied into the repo (`dashboard/components/ui/*`), so there's no heavy dep and we own the source.
+
+**Alternatives rejected:**
+- **MUI / Chakra** — Large bundle, strong opinions, hard to restyle.
+- **DaisyUI** — CSS-only; fine but shadcn's React primitives fit App Router + Server Components better.
+- **Handrolled** — Spends design time we'd rather spend on data viz.
+
+**Consequences:**
+- Components are editable in-repo (good for portfolio showcase — reviewers can see the CSS).
+- Upgrade path is manual (copy new primitive versions when needed).
+- Bundle stays small.
+
+### DEC-26b: Dashboard calls FastAPI directly over CORS (no BFF)
+
+**Status:** Accepted
+
+**Context:** Next.js supports Route Handlers that could proxy FastAPI calls (BFF pattern), keeping the API key server-side and shaping responses per page. Alternative: call FastAPI directly from the browser with CORS.
+
+**Decision:** Browser → FastAPI directly. `NEXT_PUBLIC_API_URL` (e.g., `http://localhost:8060`) and `NEXT_PUBLIC_API_KEY` (dev-only) baked in at build time. CORS allow-list widened to include `http://localhost:3070`. For any operation requiring a protected secret (e.g., share token minting), that call still lives in a Next.js Route Handler so the secret never reaches the browser.
+
+**Alternatives rejected:**
+- **Full BFF** — Doubles routes, introduces a second auth hop, and adds latency for no benefit given single-origin deployments.
+- **Embedded API key in the build** — Already the plan for dev; production uses a proxy-terminated auth where the browser has no API key and the dashboard backend re-attaches it.
+
+**Consequences:**
+- Fewer moving parts in dev; the browser is a first-class FastAPI client.
+- Server-only work (PDF signing, share minting) intentionally stays in Next.js Route Handlers to keep secrets out of the bundle.
+- CORS misconfiguration would be the top dev-time footgun — slice 20b locks it in with a regression test.
+
+---
+
+## DEC-27: In-process asyncio pub/sub for the Agent State Bus (not Redis)
+
+**Status:** Accepted
+
+**Context:** The `AgentStateBus` (slice 19) needs to deliver events from the crew background thread to SSE subscribers in the same process.
+
+**Decision:** Implement `AgentStateBus` as an in-process asyncio pub/sub: a dict mapping `task_id` → list of `asyncio.Queue`-backed subscribers, with publish posting to all queues and subscribe yielding from a queue until a terminal event. Bounded queues with drop-oldest.
+
+**Alternatives rejected:**
+- **Redis Pub/Sub** — Needed only if we ever run multiple API instances; we don't, and Docker service count matters.
+- **In-process asyncio `Broadcaster`-style library** — A small library would do the job, but we're talking ~30 lines of code; fewer deps is better.
+- **Shared memory / multiprocessing queue** — Solves a problem we don't have.
+
+**Consequences:**
+- Zero new deps; trivial to test.
+- Single-process only — the path to multi-instance would be swapping this class for a Redis-backed version (interface stays the same).
+- Bounded queues prevent a stuck subscriber from OOM-ing the process.
+
+---
+
+## DEC-28: Agent events persist in `agent_events` SQLite table (extend, not new store)
+
+**Status:** Accepted
+
+**Context:** The shareable read-only page (slice 27) needs to reconstruct the full per-agent timeline of a completed run — after the in-process `AgentStateBus` has garbage-collected the queue and even after a server restart.
+
+**Decision:** Add an `agent_events` table to the existing `data/results.db` SQLite file (managed by `src/services/sqlite_store.py`). Columns: `task_id`, `agent_role`, `state`, `detail`, `ts`. Insert rows from the state bus in parallel with live delivery. `replay(task_id)` returns rows in chronological order; `/share/{token}` hydrates the dashboard UI from this.
+
+**Alternatives rejected:**
+- **Separate store (new DB, new service class)** — Duplicates connection management and schema migration logic.
+- **No persistence** — Shared links break across restarts; also rules out PDF export after the TaskStore TTL.
+- **Store events as JSON blobs on the run row** — Harder to query, slower to render incrementally.
+
+**Consequences:**
+- One DB, one schema migration touchpoint (`sqlite_store._init_schema`).
+- Live path and persistence share the same `AgentStateEvent` shape.
+- Events retention matches the run row: 90 days by default, configurable; TTL cleanup is one DELETE query on startup.
+- Slice 27 test 10 (`test_agent_events_table_replay_is_in_chronological_order`) locks in the behavior.
