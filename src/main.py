@@ -110,9 +110,24 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(MetricsMiddleware, collector=metrics_collector)
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(ApiKeyMiddleware)
+def _build_cors_origins() -> list[str]:
+    """Compute the effective CORS allow-list.
+
+    Appends ``DASHBOARD_ORIGIN`` so the Next.js dashboard (slice-20b) can call
+    the API directly. When the base is the wildcard ``"*"`` we keep it as-is
+    (browsers accept any origin and the dashboard origin is redundant).
+    """
+    base = list(settings.cors_origins)
+    if base == ["*"]:
+        return base
+    if settings.dashboard_origin and settings.dashboard_origin not in base:
+        base.append(settings.dashboard_origin)
+    return base
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=_build_cors_origins(),
     # allow_credentials=True is safe: when cors_origins=["*"] the library automatically
     # omits the Allow-Credentials header (browsers reject wildcard + credentials).
     # In production cors_origins is a specific domain, so credentials work as intended.

@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # Security
     api_key: Optional[str] = None
     cors_origins: list[str] = ["*"]
+    # Dashboard origin for CORS allow-list (slice-20b, DEC-26b). In dev this
+    # is always appended to cors_origins. In prod it's only appended when
+    # cors_origins is not "*".
+    dashboard_origin: str = "http://localhost:3061"
 
     # Application
     environment: Environment = Environment.DEVELOPMENT
