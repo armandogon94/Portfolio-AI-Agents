@@ -8,8 +8,10 @@ from crewai import Crew, Process
 from src.agents.factory import AgentFactory
 from src.exceptions import ValidationError
 from src.models.schemas import AgentStateEvent
+from src.services.state_bus import get_state_bus
 from src.tasks.definitions import TaskFactory
 from src.workflows import get_workflow
+from src.workflows.base import Workflow
 
 # Import tools to trigger registration via decorators
 import src.tools.search  # noqa: F401
@@ -63,8 +65,33 @@ def build_crew(
     agents = {role: all_agents[role] for role in workflow.agent_roles}
     logger.info(f"Created {len(agents)} agents: {list(agents)}")
 
+    # Slice 22: hierarchical workflows pull the manager out of the agents list
+    # and enable delegation on the remaining specialists. DEC-13 default
+    # (allow_delegation=False) is preserved for sequential workflows.
+    manager_agent = None
+    if workflow.process == "hierarchical":
+        if not workflow.manager_agent:
+            raise ValidationError(
+                f"Hierarchical workflow '{workflow.name}' requires a manager_agent."
+            )
+        if workflow.manager_agent not in agents:
+            raise ValidationError(
+                f"Hierarchical workflow '{workflow.name}': manager '{workflow.manager_agent}' "
+                f"is not in agent_roles {workflow.agent_roles}."
+            )
+        manager_agent = agents.pop(workflow.manager_agent)
+        for role_agent in agents.values():
+            role_agent.allow_delegation = True
+
+    # Collect parallel task names (DEC-20). Tasks in any group run with
+    # async_execution=True; downstream tasks block on their completion.
+    parallel_task_names: set[str] = set()
+    if workflow.parallel_tasks:
+        for group in workflow.parallel_tasks:
+            parallel_task_names.update(group)
+
     # Create tasks in the workflow's declared order, binding each to its
-    # YAML-configured agent. Tasks not listed in the workflow are skipped.
+    # YAML-configured agent.
     task_factory = TaskFactory(domain=domain)
     tasks = []
     for task_name in workflow.task_names:
@@ -74,30 +101,92 @@ def build_crew(
                 f"Workflow '{workflow.name}' references unknown task '{task_name}'"
             )
         agent_name = cfg.get("agent")
-        if agent_name not in agents:
+        # Manager agents don't appear in `agents` after pop; skip the
+        # "agent not in workflow" check for hierarchical workflows that
+        # assign the manager as a task owner.
+        available_agents = dict(agents)
+        if manager_agent is not None and agent_name == workflow.manager_agent:
+            available_agents[workflow.manager_agent] = manager_agent
+        if agent_name not in available_agents:
             raise ValidationError(
                 f"Workflow '{workflow.name}': task '{task_name}' needs agent "
                 f"'{agent_name}', which is not in the workflow's agent_roles."
             )
-        tasks.append(task_factory.create(task_name, agents[agent_name]))
+        tasks.append(
+            task_factory.create(
+                task_name,
+                available_agents[agent_name],
+                async_execution=task_name in parallel_task_names,
+            )
+        )
     logger.info(f"Created {len(tasks)} tasks for workflow {workflow.name}")
+
+    # Telegraph parallel dependencies to the state bus so the dashboard can
+    # render downstream tasks as 'waiting_on_agent' before predecessors finish.
+    if task_id:
+        _publish_waiting_for_parallel_deps(workflow, task_factory, task_id)
 
     effective_callback = (
         _wrap_callback_with_bus(step_callback, task_id) if task_id else step_callback
     )
 
-    # Slice 21 only supports sequential. Hierarchical + parallel land in slice 22.
-    process = Process.sequential
-
-    crew = Crew(
-        agents=list(agents.values()),
-        tasks=tasks,
-        process=process,
-        verbose=verbose,
-        step_callback=effective_callback,
+    process = (
+        Process.hierarchical
+        if workflow.process == "hierarchical"
+        else Process.sequential
     )
 
+    crew_kwargs: dict[str, Any] = {
+        "agents": list(agents.values()),
+        "tasks": tasks,
+        "process": process,
+        "verbose": verbose,
+        "step_callback": effective_callback,
+    }
+    if manager_agent is not None:
+        crew_kwargs["manager_agent"] = manager_agent
+
+    crew = Crew(**crew_kwargs)
+
     return crew
+
+
+def _publish_waiting_for_parallel_deps(
+    workflow: Workflow, task_factory: TaskFactory, task_id: str
+) -> None:
+    """Emit synthetic ``waiting_on_agent`` events for tasks blocked on parallel groups.
+
+    Called once at crew-build time so the live dashboard can render the
+    dependency chain before the first parallel task completes. Non-parallel
+    tasks that come AFTER a parallel group are treated as waiting.
+    """
+    if not workflow.parallel_tasks:
+        return
+    parallel_names: set[str] = set()
+    for group in workflow.parallel_tasks:
+        parallel_names.update(group)
+
+    bus = get_state_bus()
+    ts = datetime.now(timezone.utc).isoformat()
+    seen_parallel = False
+    for task_name in workflow.task_names:
+        if task_name in parallel_names:
+            seen_parallel = True
+            continue
+        if not seen_parallel:
+            continue
+        cfg = task_factory.tasks_config.get(task_name, {}) or {}
+        role = cfg.get("agent", task_name)
+        bus.publish(
+            task_id,
+            AgentStateEvent(
+                task_id=task_id,
+                agent_role=role,
+                state="waiting_on_agent",
+                detail=f"waiting on parallel group for task '{task_name}'",
+                ts=ts,
+            ),
+        )
 
 
 def _wrap_callback_with_bus(

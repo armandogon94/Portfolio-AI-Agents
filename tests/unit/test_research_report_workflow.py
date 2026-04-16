@@ -47,7 +47,7 @@ class TestResearchReportWorkflow:
                 "validation": {"agent": "validator"},
             }
             MockTaskFactory.return_value.create.side_effect = (
-                lambda task_name, agent: MagicMock(name=f"task_{task_name}")
+                lambda task_name, agent, async_execution=False: MagicMock(name=f"task_{task_name}")
             )
 
             from src.crew import build_crew
@@ -85,7 +85,7 @@ class TestResearchReportWorkflow:
                 "validation": {"agent": "validator"},
             }
             MockTaskFactory.return_value.create.side_effect = (
-                lambda task_name, agent: MagicMock()
+                lambda task_name, agent, async_execution=False: MagicMock()
             )
 
             from src.crew import build_crew

@@ -26,8 +26,17 @@ class TaskFactory:
                 domain_config = _load_yaml(domain_path)
                 self.domain_overrides = domain_config.get("task_overrides", {})
 
-    def create(self, task_name: str, agent: Agent) -> Task:
-        """Create a single task by name, bound to an agent."""
+    def create(
+        self, task_name: str, agent: Agent, async_execution: bool = False
+    ) -> Task:
+        """Create a single task by name, bound to an agent.
+
+        Args:
+            task_name: Key in tasks.yaml.
+            agent: Agent that will execute this task.
+            async_execution: If True, CrewAI runs the task concurrently
+                with other async tasks in the same group (slice-22, DEC-20).
+        """
         if task_name not in self.tasks_config:
             raise KeyError(
                 f"Task '{task_name}' not found. Available: {list(self.tasks_config.keys())}"
@@ -46,6 +55,7 @@ class TaskFactory:
             description=config["description"],
             agent=agent,
             expected_output=config["expected_output"],
+            async_execution=async_execution,
         )
 
     def create_all(self, agents: dict[str, Agent]) -> list[Task]:

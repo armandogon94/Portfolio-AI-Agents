@@ -22,7 +22,7 @@ class TestBuildCrewStepCallback:
             "validation": {"agent": "validator"},
         }
         MockTaskFactory.return_value.create.side_effect = (
-            lambda task_name, agent: MagicMock(name=f"task_{task_name}")
+            lambda task_name, agent, async_execution=False: MagicMock(name=f"task_{task_name}")
         )
 
     def test_build_crew_accepts_step_callback(self):
