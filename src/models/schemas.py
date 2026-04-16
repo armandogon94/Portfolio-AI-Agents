@@ -1,4 +1,27 @@
+from enum import Enum
+
 from pydantic import BaseModel, Field
+
+
+class AgentRunState(str, Enum):
+    """Lifecycle states for an agent within a crew run (slice-19, DEC-16)."""
+
+    QUEUED = "queued"
+    ACTIVE = "active"
+    WAITING_ON_TOOL = "waiting_on_tool"
+    WAITING_ON_AGENT = "waiting_on_agent"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class AgentStateEvent(BaseModel):
+    """A single state event for a crew run, streamed via SSE (slice-19)."""
+
+    task_id: str = Field(..., description="Task ID this event belongs to")
+    agent_role: str = Field(..., description="Role name of the agent emitting the event")
+    state: str = Field(..., description="Current state (AgentRunState value)")
+    detail: str = Field("", description="Human-readable detail (e.g., tool name)")
+    ts: str = Field(..., description="ISO 8601 timestamp")
 
 
 class CrewRequest(BaseModel):
