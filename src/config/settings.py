@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     # Persistence
     sqlite_db_path: str = "data/results.db"
 
+    # Voice (slice-26, DEC-21, DEC-22) — disabled by default. Only turn on
+    # for deliberate demos; TCPA applies to every outbound call.
+    voice_enabled: bool = False
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    twilio_from_number: Optional[str] = None
+    twilio_webhook_base: str = "http://localhost:8060"
+    # Whitelist — the tool refuses to dial numbers that aren't here.
+    twilio_verified_to_numbers: list[str] = []
+
     model_config = {
         "env_file": (".env", ".env.local"),
         "env_file_encoding": "utf-8",

@@ -89,6 +89,18 @@ LLM_PROVIDER=anthropic
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
+### Voice Demo (Twilio trial, slice-26)
+
+> **⚠️ TCPA notice (US).** Outbound automated calls without prior written
+> consent can trigger $500–$1,500 per-call statutory damages. This is a
+> **portfolio demo only**. Only call numbers you own or have documented
+> written consent to call. The system refuses to dial anything not on
+> `TWILIO_VERIFIED_TO_NUMBERS`.
+
+Voice is **off by default** (`VOICE_ENABLED=false`). Unit tests fully
+mock Twilio and never touch the network. Full setup + TCPA safety
+checklist: [docs/demos/voice.md](docs/demos/voice.md).
+
 ## API Endpoints
 
 | Method | Path | Description |

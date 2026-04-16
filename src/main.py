@@ -4,7 +4,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import BackgroundTasks, FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
+
+from twilio.request_validator import RequestValidator
+from twilio.twiml.voice_response import VoiceResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -18,6 +21,7 @@ from src.services.metrics import MetricsCollector
 from src.services.sqlite_store import SQLiteResultStore
 from src.services.state_bus import get_state_bus
 from src.services.task_store import TaskStore
+from src.services.voice_session import get_voice_session_store
 from src.dependencies import get_qdrant_repo
 from src.middleware.auth import ApiKeyMiddleware
 from src.middleware.metrics import MetricsMiddleware
@@ -348,6 +352,76 @@ async def crew_run_events(request: Request, task_id: str):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.post("/voice/twiml/{task_id}")
+async def voice_twiml_webhook(request: Request, task_id: str):
+    """Twilio -> us: step the voice session and return the next TwiML (slice-26).
+
+    Authenticated by X-Twilio-Signature (HMAC over URL + POST params with
+    TWILIO_AUTH_TOKEN), not the API key. Missing/invalid signature => 403.
+    Unknown task_id => 404. Call hangs up after max_turns.
+    """
+    signature = request.headers.get("X-Twilio-Signature")
+    if not signature:
+        return Response(
+            content="forbidden", status_code=403, media_type="text/plain"
+        )
+
+    # Read form body once; Twilio posts application/x-www-form-urlencoded.
+    form = await request.form()
+    params = {k: v for k, v in form.items()}
+
+    auth_token = settings.twilio_auth_token or ""
+    validator = RequestValidator(auth_token)
+    url = str(request.url)
+    # Never log `signature` — it's a shared-secret-derived value.
+    if not validator.validate(url, params, signature):
+        logger.warning("Rejected TwiML webhook: invalid signature task_id=%s", task_id)
+        return Response(
+            content="forbidden", status_code=403, media_type="text/plain"
+        )
+
+    if task_store.get(task_id) is None:
+        return Response(
+            content="not found", status_code=404, media_type="text/plain"
+        )
+
+    sessions = get_voice_session_store()
+    session = sessions.get_or_create(task_id)
+    heard = params.get("SpeechResult") or params.get("Digits") or ""
+
+    response = VoiceResponse()
+    if session.is_complete:
+        response.say("Thank you. Goodbye.", voice="Polly.Joanna")
+        response.hangup()
+    else:
+        next_prompt = _next_voice_prompt(session, heard)
+        session.record_turn(prompt=next_prompt, heard=heard)
+        response.say(next_prompt, voice="Polly.Joanna")
+        if not session.is_complete:
+            gather = response.gather(
+                input="speech",
+                action=f"{settings.twilio_webhook_base.rstrip('/')}/voice/twiml/{task_id}",
+                timeout=5,
+                speech_timeout="auto",
+            )
+            gather.say("You can respond now.", voice="Polly.Joanna")
+        else:
+            response.hangup()
+
+    return Response(content=str(response), media_type="text/xml")
+
+
+def _next_voice_prompt(session, heard: str) -> str:
+    """Pick the next utterance. Placeholder logic until the caller agent
+    integrates a real LLM plan — slice-26 ships with a scripted opener +
+    acknowledgement pattern so the webhook contract is fully tested."""
+    if session.turn_count == 0:
+        return "Hello, this is an automated assistant calling on behalf of a customer. May I speak with someone who can help?"
+    if heard:
+        return f"Thanks — I heard you say: {heard[:120]}. Is there anything else?"
+    return "I didn't catch that. Could you repeat, please?"
 
 
 @app.get("/crew/history", response_model=RunHistoryResponse)

@@ -24,6 +24,9 @@ class ApiKeyMiddleware(BaseHTTPMiddleware):
         # Skip auth for public paths
         if request.url.path in PUBLIC_PATHS:
             return await call_next(request)
+        # Twilio webhooks use X-Twilio-Signature instead of the API key (slice-26).
+        if request.url.path.startswith("/voice/twiml/"):
+            return await call_next(request)
 
         # Skip auth if no API_KEY is configured (dev mode)
         if not settings.api_key:

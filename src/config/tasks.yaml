@@ -325,3 +325,37 @@ cma_report:
   expected_output: >
     Markdown CMA report with sections: Summary, Comparables, Market,
     Estimated Value, Disclaimer.
+
+# --- Slice 26: Voice receptionist ---
+
+voice_intake:
+  description: >
+    Intake the caller request: {topic}
+
+    {prior_context}
+
+    Produce structured call parameters the caller agent can act on.
+  agent: intake_agent
+  expected_output: >
+    JSON with keys: to_number (E.164), goal (one of: book, confirm,
+    cancel, status, other), opening_utterance (<=25 words, polite,
+    states who's calling and why), max_turns (<=6).
+
+voice_call:
+  description: >
+    Place the outbound call via the voice_call tool using the intake
+    parameters. Manage conversation turns through the TwiML webhook.
+    Do not exceed max_turns. Never dial unverified numbers.
+  agent: caller_agent
+  expected_output: >
+    JSON with keys: call_sid, turns (list of {prompt, heard}),
+    ended_reason (completed|max_turns|hangup|error).
+
+voice_summary:
+  description: >
+    Write the post-call summary from the turn transcript.
+  agent: summary_agent
+  expected_output: >
+    Markdown block with Outcome line (booked|escalated|no_answer|
+    declined), 1-paragraph summary, and an optional "Callback needed"
+    line if unresolved.

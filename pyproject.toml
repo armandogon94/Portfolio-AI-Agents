@@ -38,6 +38,7 @@ dependencies = [
     # URL + PDF ingest
     "beautifulsoup4>=4.12.0",
     "pypdf>=4.0.0",
+    "twilio>=9.10.5",
 ]
 
 [project.optional-dependencies]
@@ -58,6 +59,7 @@ markers = [
     "unit: Unit tests (fast, mocked)",
     "integration: Integration tests (local services required)",
     "slow: Slow tests (actual LLM calls)",
+    "voice: Opt-in live Twilio tests — DO NOT run on CI (TCPA)",
 ]
 asyncio_mode = "auto"
 

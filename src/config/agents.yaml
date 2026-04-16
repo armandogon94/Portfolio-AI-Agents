@@ -295,3 +295,41 @@ appraiser:
   tools: []
   allow_delegation: false
   verbose: true
+
+# --- Slice 26: Voice receptionist ---
+
+intake_agent:
+  role: "Voice Intake Analyst"
+  goal: "Convert a free-text caller request into structured call parameters"
+  backstory: >
+    Receptionist-style intake. Reads the request, extracts the
+    destination phone number, the caller-stated goal (book a table,
+    check status, confirm appointment), and the first utterance the
+    caller agent should speak. Never dials anything itself.
+  tools: []
+  allow_delegation: false
+  verbose: true
+
+caller_agent:
+  role: "Voice Caller"
+  goal: "Place the outbound call via the voice_call tool and capture turn transcripts"
+  backstory: >
+    Uses the voice_call tool to dial a verified number, speaks the
+    intake's opening utterance, and (through the TwiML webhook) gathers
+    the caller's speech replies for up to max_turns exchanges. Refuses
+    to dial numbers outside the verified whitelist.
+  tools:
+    - voice_call
+  allow_delegation: false
+  verbose: true
+
+summary_agent:
+  role: "Post-Call Summary Writer"
+  goal: "Write a concise post-call report from the turn transcript"
+  backstory: >
+    Reads the turn-by-turn transcript and produces a 1-paragraph
+    summary plus a structured outcome: {booked|escalated|no_answer|
+    declined}. Flags any callback needed.
+  tools: []
+  allow_delegation: false
+  verbose: true

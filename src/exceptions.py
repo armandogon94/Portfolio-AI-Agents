@@ -30,3 +30,10 @@ class ServiceUnavailableError(AppError):
 class CrewExecutionError(AppError):
     def __init__(self, message: str = "Crew execution failed"):
         super().__init__(message, status_code=500)
+
+
+class VoiceDisabledError(AppError):
+    """Raised when a voice-tool call is attempted while VOICE_ENABLED=false (slice-26, DEC-22)."""
+
+    def __init__(self, message: str = "Voice features are disabled. Set VOICE_ENABLED=true to enable."):
+        super().__init__(message, status_code=422)

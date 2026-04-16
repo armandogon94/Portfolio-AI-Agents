@@ -12,6 +12,7 @@ name = "ai-agent-system"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [
+    { name = "beautifulsoup4" },
     { name = "chainlit" },
     { name = "crewai", extra = ["tools"] },
     { name = "duckduckgo-search" },
@@ -22,11 +23,13 @@ dependencies = [
     { name = "langchain-community" },
     { name = "langchain-ollama" },
     { name = "pydantic-settings" },
+    { name = "pypdf" },
     { name = "python-dotenv" },
     { name = "python-json-logger" },
     { name = "pyyaml" },
     { name = "qdrant-client" },
     { name = "slowapi" },
+    { name = "twilio" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -40,6 +43,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.12.0" },
     { name = "chainlit", specifier = ">=1.0.0" },
     { name = "crewai", extras = ["tools"], specifier = ">=0.30.0" },
     { name = "duckduckgo-search", specifier = ">=4.0" },
@@ -50,6 +54,7 @@ requires-dist = [
     { name = "langchain-community", specifier = ">=0.0.20" },
     { name = "langchain-ollama", specifier = ">=0.1.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
+    { name = "pypdf", specifier = ">=4.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.21.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
@@ -59,6 +64,7 @@ requires-dist = [
     { name = "qdrant-client", specifier = ">=1.7.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "slowapi", specifier = ">=0.1.9" },
+    { name = "twilio", specifier = ">=9.10.5" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
 ]
 provides-extras = ["dev"]
@@ -164,6 +170,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/78/b7/15fb7a9d52e112a25b621c67b69c167805cb1f2ab8f1708a5c490d1b52fe/aiohttp-3.13.5-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:3b13560160d07e047a93f23aaa30718606493036253d5430887514715b67c9d9", size = 1772072, upload-time = "2026-03-31T22:00:07.494Z" },
     { url = "https://files.pythonhosted.org/packages/7e/df/57ba7f0c4a553fc2bd8b6321df236870ec6fd64a2a473a8a13d4f733214e/aiohttp-3.13.5-cp314-cp314t-win32.whl", hash = "sha256:9a0f4474b6ea6818b41f82172d799e4b3d29e22c2c520ce4357856fced9af2f8", size = 471819, upload-time = "2026-03-31T22:00:10.277Z" },
     { url = "https://files.pythonhosted.org/packages/62/29/2f8418269e46454a26171bfdd6a055d74febf32234e474930f2f60a17145/aiohttp-3.13.5-cp314-cp314t-win_amd64.whl", hash = "sha256:18a2f6c1182c51baa1d28d68fea51513cb2a76612f038853c0ad3c145423d3d9", size = 505441, upload-time = "2026-03-31T22:00:12.791Z" },
+]
+
+[[package]]
+name = "aiohttp-retry"
+version = "2.9.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9d/61/ebda4d8e3d8cfa1fd3db0fb428db2dd7461d5742cea35178277ad180b033/aiohttp_retry-2.9.1.tar.gz", hash = "sha256:8eb75e904ed4ee5c2ec242fefe85bf04240f685391c4879d8f541d6028ff01f1", size = 13608, upload-time = "2024-11-06T10:44:54.574Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/99/84ba7273339d0f3dfa57901b846489d2e5c2cd731470167757f1935fffbd/aiohttp_retry-2.9.1-py3-none-any.whl", hash = "sha256:66d2759d1921838256a05a3f80ad7e724936f083e35be5abb5e16eed6be6dc54", size = 9981, upload-time = "2024-11-06T10:44:52.917Z" },
 ]
 
 [[package]]
@@ -3773,6 +3791,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pypdf"
+version = "6.10.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/3f/9f2167401c2e94833ca3b69535bad89e533b5de75fefe4197a2c224baec2/pypdf-6.10.2.tar.gz", hash = "sha256:7d09ce108eff6bf67465d461b6ef352dcb8d84f7a91befc02f904455c6eea11d", size = 5315679, upload-time = "2026-04-15T16:37:36.978Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0c/d6/1d5c60cc17bbdf37c1552d9c03862fc6d32c5836732a0415b2d637edc2d0/pypdf-6.10.2-py3-none-any.whl", hash = "sha256:aa53be9826655b51c96741e5d7983ca224d898ac0a77896e64636810517624aa", size = 336308, upload-time = "2026-04-15T16:37:34.851Z" },
+]
+
+[[package]]
 name = "pypdfium2"
 version = "5.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4600,6 +4627,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ad/ad/a14fcdbb3f20813a25d495e5910a7618eea47015682c05ac24c17fcff6b4/traceloop_sdk-0.45.6.tar.gz", hash = "sha256:e7cdce57f413d0905f43ec5bab819264a3d927dd2974adad8d2f6786fa4af2e6", size = 27765, upload-time = "2025-08-18T08:04:40.678Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/72/e5/32a0ae6d26abc61e23da64d11113068d91bb95b40e75c9bb7f87c95d5581/traceloop_sdk-0.45.6-py3-none-any.whl", hash = "sha256:e7cd2e15915e9955d53276f926c78e0b5ad2f931221b3ed3af655e08ccc18d0e", size = 39774, upload-time = "2025-08-18T08:04:39.085Z" },
+]
+
+[[package]]
+name = "twilio"
+version = "9.10.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "aiohttp-retry" },
+    { name = "pyjwt" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b5/97/c439bc2c058f8a24edd732f5cc82adedd8794bcc2da0836c2eff1e2dbe91/twilio-9.10.5.tar.gz", hash = "sha256:d9f93b9280349ee7b52e7f17a0600fd7bfd0f7ff88eb00c40270164bc058743f", size = 1641690, upload-time = "2026-04-14T09:52:09.392Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4a/97/4fdde5e54fcbb789aa1a70c371f2f33d7eb1e58e8a6131fdbd8a98490976/twilio-9.10.5-py2.py3-none-any.whl", hash = "sha256:7972db54496fbf501b238f34d1f717f80ff22720313dc706632787aad5934997", size = 2284944, upload-time = "2026-04-14T09:52:07.333Z" },
 ]
 
 [[package]]
