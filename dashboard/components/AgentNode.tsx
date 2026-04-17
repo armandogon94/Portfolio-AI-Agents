@@ -7,9 +7,15 @@ import { StateChip } from "@/components/StateChip";
 import type { AgentRunState } from "@/lib/types";
 
 /**
- * React Flow custom node for a workflow agent (slice-29a).
- * State-driven halos land in slice-29b; for now the component renders
- * idle styling + an (optional) state chip sourced from props.
+ * React Flow custom node for a workflow agent.
+ *
+ * Slice-29a: idle-only visuals.
+ * Slice-29b: state-driven halo + aria-current + failed shake.
+ *   - active / waiting_on_tool / waiting_on_agent → pulsing halo
+ *   - failed → rose border + one-shot shake
+ *   - completed → indigo solid border
+ *   - queued → slate border, dim
+ * Animations are gated by prefers-reduced-motion (see globals.css).
  */
 
 export interface AgentNodeData extends Record<string, unknown> {
@@ -30,21 +36,57 @@ function prettyRole(role: string): string {
   return role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+const STATE_RING: Record<AgentRunState, string> = {
+  queued:
+    "border-zinc-200/80 dark:border-zinc-800",
+  active:
+    "border-indigo-400 ring-2 ring-indigo-300/60 dark:border-indigo-400 dark:ring-indigo-400/30",
+  waiting_on_tool:
+    "border-amber-400 ring-2 ring-amber-300/60 dark:border-amber-400 dark:ring-amber-400/30",
+  waiting_on_agent:
+    "border-amber-300 opacity-70 dark:border-amber-500/60",
+  completed:
+    "border-indigo-500 ring-1 ring-indigo-400/50 dark:border-indigo-400/80",
+  failed:
+    "border-rose-400 ring-2 ring-rose-300/50 dark:border-rose-500/70 dark:ring-rose-500/30",
+};
+
+function animationClass(state: AgentRunState): string {
+  if (
+    state === "active" ||
+    state === "waiting_on_tool" ||
+    state === "waiting_on_agent"
+  ) {
+    return "graph-node-active";
+  }
+  if (state === "failed") return "graph-node-failed";
+  return "";
+}
+
 export function AgentNode({ data }: AgentNodeProps) {
   const state: AgentRunState = data.state ?? "queued";
   const isManager = data.kind === "manager";
+  const isLive =
+    state === "active" ||
+    state === "waiting_on_tool" ||
+    state === "waiting_on_agent";
 
   return (
     <div
       data-testid={`agent-node-${data.role}`}
+      data-node-state={state}
       aria-label={`Agent ${prettyRole(data.role)} — ${state}`}
+      aria-current={isLive ? "true" : undefined}
       className={[
         "min-w-[12rem] rounded-xl border bg-white p-3 shadow-sm transition-shadow",
         "dark:bg-zinc-900/60",
-        isManager
+        isManager && state === "queued"
           ? "border-indigo-300 ring-1 ring-indigo-200/50 dark:border-indigo-500/40 dark:ring-indigo-500/20"
-          : "border-zinc-200/80 dark:border-zinc-800",
-      ].join(" ")}
+          : STATE_RING[state],
+        animationClass(state),
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <Handle type="target" position={Position.Left} className="!opacity-0" />
       <div className="flex items-center justify-between gap-2">

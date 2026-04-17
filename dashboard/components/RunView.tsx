@@ -55,19 +55,6 @@ export default function RunView({ taskId }: { taskId: string }) {
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [viewMode, setViewMode] = useViewMode("graph");
 
-  // Latest-state per agent role — fed into the graph node's `state` data
-  // so the graph can render the right state chip for each agent today.
-  // Slice 29b will evolve this into a full animated reducer.
-  const nodeStates = useMemo<Record<string, AgentRunState>>(() => {
-    const out: Record<string, AgentRunState> = {};
-    for (const event of stream.events) {
-      if (event.agent_role && event.agent_role !== "crew") {
-        out[event.agent_role] = event.state;
-      }
-    }
-    return out;
-  }, [stream.events]);
-
   async function copyShareLink() {
     setShareMsg(null);
     try {
@@ -162,7 +149,7 @@ export default function RunView({ taskId }: { taskId: string }) {
       ) : null}
 
       {viewMode === "graph" ? (
-        <GraphPane taskId={taskId} events={stream.events} nodeStates={nodeStates} />
+        <GraphPane taskId={taskId} events={stream.events} />
       ) : (
         <div
           data-testid="board-pane"

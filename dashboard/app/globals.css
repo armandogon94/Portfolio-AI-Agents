@@ -128,3 +128,46 @@
     @apply font-sans;
   }
 }
+
+/* Slice-29b: live graph animation.
+ * CSS variables are reused by AgentNode and EdgeAnimated so the node halo
+ * and edge shimmer feel like one system. Every animation is gated by
+ * prefers-reduced-motion — users who request less motion see the state
+ * chip only. */
+@keyframes graph-halo-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(99, 102, 241, 0);
+  }
+}
+@keyframes graph-edge-shimmer {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+@keyframes graph-node-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+.graph-node-active {
+  animation: graph-halo-pulse 2s ease-in-out infinite;
+}
+.graph-node-failed {
+  animation: graph-node-shake 0.45s ease-in-out 1;
+}
+.graph-edge-shimmer {
+  stroke-dasharray: 6 4;
+  animation: graph-edge-shimmer 1.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-node-active,
+  .graph-node-failed,
+  .graph-edge-shimmer {
+    animation: none !important;
+  }
+}

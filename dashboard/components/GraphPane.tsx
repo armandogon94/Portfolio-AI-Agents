@@ -19,13 +19,13 @@ import { EdgeAnimated } from "@/components/EdgeAnimated";
 import { apiClient } from "@/lib/api";
 import { buildGraph } from "@/lib/graph";
 import { layoutNodes } from "@/lib/dagreLayout";
-import type { AgentRunState, AgentStateEvent, WorkflowInfo } from "@/lib/types";
+import { useGraphState } from "@/lib/useGraphState";
+import type { AgentStateEvent, WorkflowInfo } from "@/lib/types";
 
 export interface GraphPaneProps {
   taskId: string;
   workflowName?: string;
   events?: AgentStateEvent[];
-  nodeStates?: Record<string, AgentRunState>;
 }
 
 const NODE_TYPES: NodeTypes = { agent: AgentNode as unknown as NodeTypes["agent"] };
@@ -39,7 +39,7 @@ export default function GraphPane(props: GraphPaneProps) {
   );
 }
 
-function GraphPaneInner({ taskId, workflowName, nodeStates }: GraphPaneProps) {
+function GraphPaneInner({ workflowName, events = [] }: GraphPaneProps) {
   const [workflow, setWorkflow] = useState<WorkflowInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,16 +64,22 @@ function GraphPaneInner({ taskId, workflowName, nodeStates }: GraphPaneProps) {
     };
   }, [workflowName]);
 
+  const { nodeStates, edgeStates } = useGraphState(events, workflow);
+
   const { nodes, edges } = useMemo(() => {
     if (!workflow) return { nodes: [] as Node[], edges: [] as Edge[] };
     const { nodes: rawNodes, edges: rawEdges } = buildGraph(workflow);
     const positioned = layoutNodes(rawNodes, rawEdges, "LR");
     const decorated: Node[] = positioned.map((n) => ({
       ...n,
-      data: { ...n.data, state: nodeStates?.[n.id] ?? "queued" },
+      data: { ...n.data, state: nodeStates[n.id] ?? "queued" },
     }));
-    return { nodes: decorated, edges: rawEdges as Edge[] };
-  }, [workflow, nodeStates]);
+    const live: Edge[] = rawEdges.map((e) => ({
+      ...e,
+      data: { ...(e.data ?? {}), state: edgeStates[e.id] ?? "idle" },
+    })) as Edge[];
+    return { nodes: decorated, edges: live };
+  }, [workflow, nodeStates, edgeStates]);
 
   if (error) {
     return (

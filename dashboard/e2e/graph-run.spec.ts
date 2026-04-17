@@ -55,6 +55,52 @@ test.describe("Graph view — slice 29a topology", () => {
     await expect(page.locator(".react-flow__edge")).toHaveCount(3);
   });
 
+  test("animates the active node (aria-current) and firing edge (data-edge-state)", async ({
+    page,
+  }) => {
+    await page.route("**/workflows", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([RESEARCH_REPORT_WORKFLOW]),
+      });
+    });
+
+    // SSE stream fires one event per ~100ms so the test sees the live
+    // transition: researcher completes → analyst activates. The edge
+    // between them should flip to firing/packet.
+    const now = new Date().toISOString();
+    const sse = [
+      `event: agent_state\ndata: ${JSON.stringify({ task_id: "t", agent_role: "researcher", state: "active", detail: "", ts: now })}\n\n`,
+      `event: agent_state\ndata: ${JSON.stringify({ task_id: "t", agent_role: "researcher", state: "completed", detail: "", ts: now })}\n\n`,
+      `event: agent_state\ndata: ${JSON.stringify({ task_id: "t", agent_role: "analyst", state: "active", detail: "", ts: now })}\n\n`,
+    ].join("");
+
+    await page.route("**/crew/run/*/events", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: sse,
+      });
+    });
+
+    await page.goto("/runs/test-live-animation");
+
+    // Analyst has just activated and should carry aria-current.
+    await expect(page.getByTestId("agent-node-analyst")).toHaveAttribute(
+      "aria-current",
+      "true",
+      { timeout: 10_000 },
+    );
+    // Exactly one node is "live" at a time.
+    await expect(page.locator("[aria-current='true']")).toHaveCount(1);
+
+    // At least one edge lights up with firing/packet state.
+    await expect(
+      page.locator("[data-edge-state='firing'], [data-edge-state='packet']"),
+    ).not.toHaveCount(0);
+  });
+
   test("view toggle switches between graph and kanban board", async ({
     page,
   }) => {
