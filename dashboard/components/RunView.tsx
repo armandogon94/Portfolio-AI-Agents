@@ -96,22 +96,23 @@ export default function RunView({ taskId }: { taskId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Run <code className="font-mono text-base">{taskId}</code>
+      <header className="flex flex-col gap-4 rounded-xl border border-zinc-200/80 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:bg-zinc-900/60">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            Live crew run
+          </p>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl dark:text-zinc-50">
+            {stream.completed
+              ? stream.status === "failed"
+                ? "Run failed"
+                : "Run complete"
+              : "Crew is working"}
           </h1>
-          {stream.completed ? (
-            <p className="mt-1 text-sm text-zinc-500">
-              {stream.status === "failed" ? "Run failed." : "Run complete."}
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-zinc-500">
-              Live events streaming via SSE.
-            </p>
-          )}
+          <p className="mt-1 truncate font-mono text-[11px] text-zinc-400">
+            {taskId}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <TimelineStrip startedAt={startedAt} completed={stream.completed} />
           <Button
             variant="outline"
@@ -122,7 +123,6 @@ export default function RunView({ taskId }: { taskId: string }) {
             Copy Share Link
           </Button>
           <Button
-            variant="outline"
             size="sm"
             onClick={exportPdf}
             disabled={!stream.completed}
@@ -144,23 +144,47 @@ export default function RunView({ taskId }: { taskId: string }) {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <KanbanColumn title="Queued" testId="column-queued">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KanbanColumn
+          title="Queued"
+          testId="column-queued"
+          tone="queued"
+          count={columns.queued.length}
+          emptyLabel="Nothing queued"
+        >
           {columns.queued.map((a) => (
             <AgentCard key={a.role} {...a} />
           ))}
         </KanbanColumn>
-        <KanbanColumn title="Active" testId="column-active">
+        <KanbanColumn
+          title="Active"
+          testId="column-active"
+          tone="active"
+          count={columns.active.length}
+          emptyLabel="No agent working"
+        >
           {columns.active.map((a) => (
             <AgentCard key={a.role} {...a} />
           ))}
         </KanbanColumn>
-        <KanbanColumn title="Waiting" testId="column-waiting">
+        <KanbanColumn
+          title="Waiting"
+          testId="column-waiting"
+          tone="waiting"
+          count={columns.waiting.length}
+          emptyLabel="No blockers"
+        >
           {columns.waiting.map((a) => (
             <AgentCard key={a.role} {...a} />
           ))}
         </KanbanColumn>
-        <KanbanColumn title="Done" testId="column-done">
+        <KanbanColumn
+          title="Done"
+          testId="column-done"
+          tone="done"
+          count={columns.done.length}
+          emptyLabel="Nothing finished yet"
+        >
           {columns.done.map((a) => (
             <AgentCard key={a.role} {...a} />
           ))}

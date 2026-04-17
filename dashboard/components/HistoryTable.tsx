@@ -41,42 +41,50 @@ export default function HistoryTable() {
 
   if (runs.length === 0) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="px-4 py-8 text-center text-sm text-zinc-500">
         No runs yet. Launch one from the home page to populate history.
       </p>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+    <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+        <thead className="bg-zinc-50/70 text-left dark:bg-zinc-900/50">
           <tr>
-            <th className="px-4 py-2 font-medium">Topic</th>
-            <th className="px-4 py-2 font-medium">Domain</th>
-            <th className="px-4 py-2 font-medium">Duration</th>
-            <th className="px-4 py-2 font-medium">Created</th>
-            <th className="px-4 py-2" />
+            <Th>Topic</Th>
+            <Th>Domain</Th>
+            <Th>Duration</Th>
+            <Th>Created</Th>
+            <th className="px-4 py-3" />
           </tr>
         </thead>
         <tbody>
           {runs.map((run) => (
             <tr
               key={run.task_id}
-              className="border-t border-zinc-200 dark:border-zinc-800"
+              className="border-t border-zinc-100 transition-colors hover:bg-zinc-50/70 dark:border-zinc-800 dark:hover:bg-zinc-800/40"
             >
-              <td className="px-4 py-2">{run.topic}</td>
-              <td className="px-4 py-2">{run.domain ?? "general"}</td>
-              <td className="px-4 py-2">{run.duration_seconds.toFixed(1)}s</td>
-              <td className="px-4 py-2 text-zinc-500">
+              <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-50">
+                {run.topic}
+              </td>
+              <td className="px-4 py-3">
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {run.domain ?? "general"}
+                </span>
+              </td>
+              <td className="px-4 py-3 font-mono tabular-nums text-zinc-600 dark:text-zinc-400">
+                {run.duration_seconds.toFixed(1)}s
+              </td>
+              <td className="px-4 py-3 text-zinc-500">
                 {new Date(run.created_at).toLocaleString()}
               </td>
-              <td className="px-4 py-2 text-right">
+              <td className="px-4 py-3 text-right">
                 <Link
                   href={`/runs/${run.task_id}`}
-                  className="text-zinc-900 underline dark:text-zinc-100"
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
                 >
-                  View
+                  View →
                 </Link>
               </td>
             </tr>
@@ -84,5 +92,13 @@ export default function HistoryTable() {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function Th({ children }: { children: React.ReactNode }) {
+  return (
+    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+      {children}
+    </th>
   );
 }

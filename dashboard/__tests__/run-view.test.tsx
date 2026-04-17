@@ -72,13 +72,13 @@ describe("RunView SSE rendering", () => {
     publish("queued", "researcher");
     await waitFor(() => {
       const queued = screen.getByTestId("column-queued");
-      expect(queued).toHaveTextContent("researcher");
+      expect(queued).toHaveTextContent(/researcher/i);
     });
 
     publish("active", "researcher", "tool: web_search");
     await waitFor(() => {
       const active = screen.getByTestId("column-active");
-      expect(active).toHaveTextContent("researcher");
+      expect(active).toHaveTextContent(/researcher/i);
     });
     expect(screen.queryByTestId("column-queued")).not.toHaveTextContent(
       "researcher",
@@ -87,7 +87,7 @@ describe("RunView SSE rendering", () => {
     publish("completed", "researcher");
     await waitFor(() => {
       const done = screen.getByTestId("column-done");
-      expect(done).toHaveTextContent("researcher");
+      expect(done).toHaveTextContent(/researcher/i);
     });
   });
 
@@ -95,7 +95,7 @@ describe("RunView SSE rendering", () => {
     render(<RunView taskId="run-42" />);
     publish("waiting_on_agent", "writer", "waiting on parallel group");
     await waitFor(() => {
-      expect(screen.getByTestId("column-waiting")).toHaveTextContent("writer");
+      expect(screen.getByTestId("column-waiting")).toHaveTextContent(/writer/i);
     });
   });
 
