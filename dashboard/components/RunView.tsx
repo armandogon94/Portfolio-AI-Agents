@@ -7,6 +7,7 @@ import GraphPane from "@/components/GraphPane";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { TimelineStrip } from "@/components/TimelineStrip";
 import { Button } from "@/components/ui/button";
+import { TranscriptPane } from "@/components/TranscriptPane";
 import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { apiClient } from "@/lib/api";
 import { useAgentEvents } from "@/lib/sse";
@@ -149,7 +150,10 @@ export default function RunView({ taskId }: { taskId: string }) {
       ) : null}
 
       {viewMode === "graph" ? (
-        <GraphPane taskId={taskId} events={stream.events} />
+        <div className="grid gap-4 md:grid-cols-[1fr_380px]">
+          <GraphPane taskId={taskId} events={stream.events} />
+          <TranscriptPane events={stream.events} />
+        </div>
       ) : (
         <div
           data-testid="board-pane"

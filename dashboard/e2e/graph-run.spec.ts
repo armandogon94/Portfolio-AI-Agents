@@ -101,6 +101,75 @@ test.describe("Graph view — slice 29a topology", () => {
     ).not.toHaveCount(0);
   });
 
+  test("transcript pane renders per-agent sections with copy-all", async ({
+    page,
+  }) => {
+    await page.route("**/workflows", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([RESEARCH_REPORT_WORKFLOW]),
+      });
+    });
+
+    const now = new Date().toISOString();
+    const sse = [
+      `event: agent_state\ndata: ${JSON.stringify({ task_id: "t", agent_role: "researcher", state: "active", detail: "searching the web", ts: now })}\n\n`,
+      `event: agent_state\ndata: ${JSON.stringify({ task_id: "t", agent_role: "researcher", state: "waiting_on_tool", detail: "tool: web_search", ts: now })}\n\n`,
+      `event: agent_state\ndata: ${JSON.stringify({ task_id: "t", agent_role: "researcher", state: "completed", detail: "got results", ts: now })}\n\n`,
+      `event: agent_state\ndata: ${JSON.stringify({ task_id: "t", agent_role: "analyst", state: "active", detail: "cross-checking", ts: now })}\n\n`,
+    ].join("");
+
+    await page.route("**/crew/run/*/events", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: sse,
+      });
+    });
+    await page
+      .context()
+      .grantPermissions(["clipboard-read", "clipboard-write"]);
+
+    await page.goto("/runs/test-transcript");
+
+    const transcript = page.locator("aside[aria-label='Transcript']");
+    await expect(transcript).toBeVisible();
+
+    // Sections exist for both agents that emitted events.
+    const researcherSection = page.getByRole("group", {
+      name: /transcript for researcher/i,
+    });
+    const analystSection = page.getByRole("group", {
+      name: /transcript for analyst/i,
+    });
+    await expect(researcherSection).toBeVisible();
+    await expect(analystSection).toBeVisible();
+
+    // Active (analyst) section auto-expands; researcher collapsed by default.
+    await expect(
+      analystSection.getByRole("button", {
+        name: /toggle analyst transcript/i,
+      }),
+    ).toHaveAttribute("aria-expanded", "true");
+    await expect(analystSection.getByText("cross-checking")).toBeVisible();
+
+    // Copy-all on researcher populates the clipboard with only researcher events.
+    // Expand the researcher section first.
+    await researcherSection
+      .getByRole("button", { name: /toggle researcher transcript/i })
+      .click();
+    await researcherSection
+      .getByRole("button", { name: /copy researcher transcript/i })
+      .click();
+    const clipboardText = await page.evaluate(() =>
+      navigator.clipboard.readText(),
+    );
+    expect(clipboardText).toContain("searching the web");
+    expect(clipboardText).toContain("got results");
+    expect(clipboardText).not.toContain("cross-checking");
+  });
+
   test("view toggle switches between graph and kanban board", async ({
     page,
   }) => {

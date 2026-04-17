@@ -27,6 +27,12 @@ if (typeof window !== "undefined") {
       dispatchEvent: () => false,
     });
   }
+  // jsdom doesn't implement scrollIntoView; TranscriptPane (slice-29c)
+  // calls it on a sentinel for auto-scroll. No-op default; tests that
+  // want to assert scroll behaviour override it.
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = function scrollIntoView(): void {};
+  }
 }
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
