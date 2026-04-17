@@ -27,6 +27,9 @@ class ApiKeyMiddleware(BaseHTTPMiddleware):
         # Twilio webhooks use X-Twilio-Signature instead of the API key (slice-26).
         if request.url.path.startswith("/voice/twiml/"):
             return await call_next(request)
+        # Share links are public-by-design; the HMAC token is the authN (slice-27, DEC-24).
+        if request.url.path.startswith("/share/"):
+            return await call_next(request)
 
         # Skip auth if no API_KEY is configured (dev mode)
         if not settings.api_key:

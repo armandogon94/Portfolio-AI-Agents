@@ -108,3 +108,33 @@ class TestSQLiteResultStore:
             body = resp.json()
             assert "runs" in body
             assert "count" in body
+
+    def test_agent_events_save_and_replay(self, store):
+        """Slice-27: state bus persists to agent_events; replay returns
+        rows in chronological order for the share page."""
+        store.save_event(
+            task_id="e-1",
+            agent_role="researcher",
+            state="active",
+            detail="started",
+            ts="2026-04-16T10:00:00+00:00",
+        )
+        store.save_event(
+            task_id="e-1",
+            agent_role="researcher",
+            state="completed",
+            detail="done",
+            ts="2026-04-16T10:00:05+00:00",
+        )
+        store.save_event(
+            task_id="other",
+            agent_role="writer",
+            state="active",
+            detail="",
+            ts="2026-04-16T10:00:02+00:00",
+        )
+
+        events = store.replay_events("e-1")
+        assert [e["state"] for e in events] == ["active", "completed"]
+        assert all(e["task_id"] == "e-1" for e in events)
+        assert store.replay_events("no-such-task") == []

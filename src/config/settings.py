@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # Persistence
     sqlite_db_path: str = "data/results.db"
 
+    # Share links (slice-27, DEC-24). Auto-generated in dev with a WARN;
+    # required in production (lifespan check emits a warning if missing).
+    share_secret: Optional[str] = None
+
     # Voice (slice-26, DEC-21, DEC-22) — disabled by default. Only turn on
     # for deliberate demos; TCPA applies to every outbound call.
     voice_enabled: bool = False

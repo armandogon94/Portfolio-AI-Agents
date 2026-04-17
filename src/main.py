@@ -1,10 +1,11 @@
 import asyncio
 import logging
+import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import BackgroundTasks, FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response, StreamingResponse
 
 from twilio.request_validator import RequestValidator
 from twilio.twiml.voice_response import VoiceResponse
@@ -18,6 +19,8 @@ from src.config.settings import Environment, settings
 from src.exceptions import AppError, NotFoundError, ValidationError
 from src.services.ingest_service import IngestService, _validate_url
 from src.services.metrics import MetricsCollector
+from src.services.pdf_export import render_run_html, render_run_pdf
+from src.services.share_token import mint as mint_share_token, verify as verify_share_token
 from src.services.sqlite_store import SQLiteResultStore
 from src.services.state_bus import get_state_bus
 from src.services.task_store import TaskStore
@@ -94,7 +97,28 @@ async def lifespan(app: FastAPI):
         app.state.qdrant_repo = None
 
     # Bind the running event loop so the state bus can dispatch from other threads (DEC-27)
-    get_state_bus().bind_loop(asyncio.get_running_loop())
+    bus = get_state_bus()
+    bus.bind_loop(asyncio.get_running_loop())
+    # Slice-27, DEC-28: persist every agent_state event alongside live delivery
+    bus.bind_persister(
+        lambda task_id, event: sqlite_store.save_event(
+            task_id=task_id,
+            agent_role=event.agent_role,
+            state=event.state,
+            detail=event.detail,
+            ts=event.ts,
+        )
+    )
+
+    # Share-link secret (slice-27, DEC-24). Required in prod; auto-generated
+    # in dev with a warning so the URLs still work on a fresh checkout.
+    if not settings.share_secret:
+        if settings.environment == Environment.PRODUCTION:
+            logger.warning(
+                "SECURITY WARNING: SHARE_SECRET is not set in production — share links will be auto-generated per restart."
+            )
+        settings.share_secret = secrets.token_urlsafe(32)
+        logger.info("Generated a runtime SHARE_SECRET (dev convenience; tokens invalidate on restart)")
     yield
     logger.info("Shutting down AI Agent System")
 
@@ -431,6 +455,85 @@ async def crew_history(request: Request, limit: int = 20):
     limit = max(1, min(limit, 100))
     runs = sqlite_store.list_recent(limit=limit)
     return RunHistoryResponse(runs=runs, count=len(runs))
+
+
+def _load_run_for_render(task_id: str) -> dict:
+    """Gather whitelisted fields for the share/PDF render. Never returns
+    webhook_url, raw tool I/O, or internal config (slice-27 security)."""
+    row = sqlite_store.get(task_id)
+    if row is None:
+        raise NotFoundError(f"Task '{task_id}' not found")
+    events = sqlite_store.replay_events(task_id)
+    return {
+        "task_id": row["task_id"],
+        "topic": row["topic"],
+        "domain": row["domain"],
+        "result": row["result"],
+        "duration_seconds": row.get("duration_seconds") or 0.0,
+        "status": "completed",
+        "events": events,
+    }
+
+
+@app.post("/share/mint")
+@limiter.limit("30/minute")
+async def share_mint(request: Request, body: dict):
+    """Mint an HMAC-signed share token for a completed run (slice-27, DEC-24).
+
+    Auth-gated: callers must supply a valid API key when configured.
+    Output: {"token": "...", "expires_in": seconds, "url_path": "/share/…"}.
+    """
+    task_id = (body or {}).get("task_id")
+    if not task_id or not isinstance(task_id, str):
+        raise ValidationError("task_id is required")
+    if sqlite_store.get(task_id) is None:
+        raise NotFoundError(f"Task '{task_id}' not found")
+    if not settings.share_secret:
+        raise AppError("SHARE_SECRET is not configured", status_code=500)
+    ttl = 7 * 24 * 3600
+    token = mint_share_token(task_id, secret=settings.share_secret, ttl_seconds=ttl)
+    return {
+        "token": token,
+        "expires_in": ttl,
+        "url_path": f"/share/{token}",
+    }
+
+
+@app.get("/share/{token}", response_class=HTMLResponse)
+async def share_run(request: Request, token: str):
+    """Public read-only render of a completed run (slice-27, DEC-24).
+
+    HMAC-signed token; 7-day default TTL. No API key required.
+    """
+    if not settings.share_secret:
+        raise AppError("Share links are not configured on this server.", status_code=500)
+    try:
+        task_id = verify_share_token(token, secret=settings.share_secret)
+    except ValidationError as exc:
+        # Tampered/malformed token → 403 per slice-27 contract.
+        raise AppError(str(exc), status_code=403) from exc
+    data = _load_run_for_render(task_id)
+    html = render_run_html(**data)
+    # Tight CSP — only inline styles from our template, no scripts.
+    return HTMLResponse(
+        content=html,
+        headers={"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'"},
+    )
+
+
+@app.get("/crew/history/{task_id}/pdf")
+@limiter.limit("30/minute")
+async def crew_history_pdf(request: Request, task_id: str):
+    """Download a PDF render of a completed run (slice-27, DEC-23). Auth-gated."""
+    data = _load_run_for_render(task_id)
+    pdf_bytes = render_run_pdf(**data)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="run-{task_id}.pdf"',
+        },
+    )
 
 
 @app.post("/documents/ingest", response_model=IngestResponse)

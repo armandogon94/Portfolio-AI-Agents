@@ -21,6 +21,21 @@ CREATE TABLE IF NOT EXISTS crew_results (
 );
 """
 
+_CREATE_EVENTS_TABLE = """
+CREATE TABLE IF NOT EXISTS agent_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id TEXT NOT NULL,
+    agent_role TEXT NOT NULL,
+    state TEXT NOT NULL,
+    detail TEXT,
+    ts TEXT NOT NULL
+);
+"""
+
+_CREATE_EVENTS_INDEX = (
+    "CREATE INDEX IF NOT EXISTS ix_agent_events_task_id ON agent_events (task_id, id);"
+)
+
 
 class SQLiteResultStore:
     """Persists completed crew run results to a SQLite database."""
@@ -38,6 +53,8 @@ class SQLiteResultStore:
     def _init_db(self) -> None:
         with self._connect() as conn:
             conn.execute(_CREATE_TABLE)
+            conn.execute(_CREATE_EVENTS_TABLE)
+            conn.execute(_CREATE_EVENTS_INDEX)
             conn.commit()
         logger.debug(f"SQLite result store ready at {self._db_path}")
 
@@ -77,5 +94,40 @@ class SQLiteResultStore:
             rows = conn.execute(
                 "SELECT * FROM crew_results ORDER BY created_at DESC LIMIT ?",
                 (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    # --- Slice 27: agent_events for share-page replay ---
+
+    def save_event(
+        self,
+        task_id: str,
+        agent_role: str,
+        state: str,
+        detail: str,
+        ts: str,
+    ) -> None:
+        """Append an agent state event for replay on the share page."""
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO agent_events (task_id, agent_role, state, detail, ts)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (task_id, agent_role, state, detail, ts),
+            )
+            conn.commit()
+
+    def replay_events(self, task_id: str) -> list[dict]:
+        """Return all persisted events for ``task_id`` in chronological order.
+
+        Ordered by auto-increment id (= insertion order) rather than the
+        ``ts`` column so ties at the same wall-clock don't reorder.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT task_id, agent_role, state, detail, ts FROM agent_events "
+                "WHERE task_id = ? ORDER BY id ASC",
+                (task_id,),
             ).fetchall()
         return [dict(r) for r in rows]

@@ -41,10 +41,21 @@ class AgentStateBus:
         self._ttl = ttl_seconds
         self._buffer_size = buffer_size
         self._loop: asyncio.AbstractEventLoop | None = None
+        # Slice-27: optional persistence side-channel so the share page
+        # can replay the timeline after the in-memory buffer is gone.
+        self._persister = None  # type: ignore[assignment]
 
     def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Bind the running event loop so cross-thread publishes can dispatch."""
         self._loop = loop
+
+    def bind_persister(self, save_event) -> None:
+        """Attach a persistence callback ``save_event(task_id, event)`` (slice-27).
+
+        Called best-effort on every publish — failures are logged but do
+        not block live delivery to subscribers.
+        """
+        self._persister = save_event
 
     def publish(self, task_id: str, event: AgentStateEvent) -> None:
         """Publish an event. Thread-safe; can be called from any thread."""
@@ -61,6 +72,14 @@ class AgentStateBus:
 
         for queue in subscribers:
             self._deliver(queue, event)
+
+        # Slice-27: best-effort persistence so the share page can replay
+        # the full timeline after a restart. Never blocks live delivery.
+        if self._persister is not None:
+            try:
+                self._persister(task_id, event)
+            except Exception:  # pragma: no cover — telemetry must not kill the crew
+                logger.exception("Failed to persist agent_state event")
 
     def _deliver(self, queue: asyncio.Queue, event: AgentStateEvent) -> None:
         if self._loop is not None and self._loop.is_running():

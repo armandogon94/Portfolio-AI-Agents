@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { AgentCard } from "@/components/AgentCard";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { TimelineStrip } from "@/components/TimelineStrip";
+import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api";
 import { useAgentEvents } from "@/lib/sse";
 import type { AgentRunState, AgentStateEvent } from "@/lib/types";
 
@@ -48,6 +50,33 @@ function buildAgents(events: AgentStateEvent[]): Record<string, AgentView> {
 
 export default function RunView({ taskId }: { taskId: string }) {
   const stream = useAgentEvents(taskId);
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+
+  async function copyShareLink() {
+    setShareMsg(null);
+    try {
+      const resp = await fetch("/api/share/mint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task_id: taskId }),
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        setShareMsg(body.error ?? `Mint failed (${resp.status})`);
+        return;
+      }
+      const body = (await resp.json()) as { url: string };
+      await navigator.clipboard.writeText(body.url);
+      setShareMsg("Share link copied to clipboard.");
+    } catch (err) {
+      setShareMsg(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  function exportPdf() {
+    // Go straight to the backend — it streams application/pdf.
+    window.location.href = `${apiClient.apiUrl}/crew/history/${taskId}/pdf`;
+  }
 
   const agents = useMemo(() => buildAgents(stream.events), [stream.events]);
 
@@ -82,8 +111,32 @@ export default function RunView({ taskId }: { taskId: string }) {
             </p>
           )}
         </div>
-        <TimelineStrip startedAt={startedAt} completed={stream.completed} />
+        <div className="flex items-center gap-3">
+          <TimelineStrip startedAt={startedAt} completed={stream.completed} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={copyShareLink}
+            disabled={!stream.completed}
+          >
+            Copy Share Link
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportPdf}
+            disabled={!stream.completed}
+          >
+            Export PDF
+          </Button>
+        </div>
       </header>
+
+      {shareMsg ? (
+        <p className="text-sm text-zinc-500" role="status">
+          {shareMsg}
+        </p>
+      ) : null}
 
       {stream.error && !stream.completed ? (
         <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">
