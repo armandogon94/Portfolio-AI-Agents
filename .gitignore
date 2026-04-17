@@ -44,4 +44,8 @@ knowledge/uploads/
 
 # Claude Code - user specific
 .claude/projects/
+.claude/launch.json
+.claude/settings.json
+.claude/scheduled_tasks.lock
+.claude/rules/
 data/
