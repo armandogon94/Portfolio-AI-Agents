@@ -35,8 +35,8 @@ docker compose -f docker-compose.dev.yml up -d
 ollama pull llama3.1:8b
 ollama pull nomic-embed-text
 
-# Install Python deps
-pip install -e ".[dev]"
+# Install Python deps (always use uv, never conda/pip)
+uv sync --extra dev
 
 # Run locally
 cp .env.example .env.local

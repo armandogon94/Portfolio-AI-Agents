@@ -653,3 +653,79 @@ class ErrorResponse(BaseModel):
 - Live path and persistence share the same `AgentStateEvent` shape.
 - Events retention matches the run row: 90 days by default, configurable; TTL cleanup is one DELETE query on startup.
 - Slice 27 test 10 (`test_agent_events_table_replay_is_in_chronological_order`) locks in the behavior.
+
+---
+
+# v4.1 — Graph Team View
+
+> DEC-29..DEC-31 made 2026-04-16 during the v4.1 spec phase. Corresponding SPEC section: SPEC.md § "v4.1 — Graph Team View".
+
+---
+
+## DEC-29: @xyflow/react for the node-and-edge graph (not custom SVG)
+
+**Status:** Accepted
+
+**Context:** v4.1 replaces the kanban with a live node-and-edge graph. Options:
+(a) build on `@xyflow/react` (React Flow v12) — the library n8n-style tools use;
+(b) hand-roll SVG + framer-motion; (c) canvas (Konva, PixiJS); (d) D3.
+
+**Decision:** Use `@xyflow/react@12` + `@dagrejs/dagre@1` for layout.
+
+**Alternatives rejected:**
+- **Custom SVG + framer-motion** — full control, ~30 KB smaller, but we'd reimplement panning, zooming, minimap, viewport math, and accessibility. Not a good use of a portfolio-scope project's time.
+- **Canvas (Konva / PixiJS)** — great perf at 1000+ nodes, but our graphs are <20 nodes; canvas loses accessibility, SEO, and text-selection.
+- **D3** — declarative data-binding is elegant but has no out-of-the-box node-graph editor UX; React integration is awkward.
+
+**Consequences:**
+- +~50 KB gzipped to the dashboard bundle — acceptable for a portfolio app (bundle budget 500 KB).
+- Free panning, zooming, minimap, keyboard nav, accessibility scaffolding.
+- Layout, edge rendering, and node styling follow the library's patterns; less bespoke code to maintain.
+- If we later need custom performance work (e.g., 1000+ nodes), React Flow supports custom `fitView` hooks without replacing the library.
+
+---
+
+## DEC-30: Graph topology derived from workflow registry (not hand-authored)
+
+**Status:** Accepted
+
+**Context:** Every new workflow would otherwise need a hand-authored graph layout in the dashboard. With 7 workflows today and more coming in Phase 5+, this is untenable.
+
+**Decision:** A pure client-side function `buildGraph(workflow: WorkflowInfo)` in `dashboard/lib/graph.ts` converts registry metadata (`agent_roles`, `task_names`, `process`, `manager_agent`, `parallel_tasks`) into React Flow `nodes[]` + `edges[]`. Layout is applied by `@dagrejs/dagre`. Workflows new'd in Python automatically render correctly in the dashboard without UI changes.
+
+**Alternatives rejected:**
+- **Hand-authored YAML/JSON layout files** per workflow — duplicates workflow definitions; drifts over time.
+- **Backend computes + returns the graph** — adds backend coupling for a purely visual concern; prevents richer client-side animation decisions.
+- **Manual React Flow code per workflow** — worst of all worlds.
+
+**Consequences:**
+- The `Workflow` dataclass + `WorkflowInfo` API are the single source of truth for topology.
+- Pure function → high test coverage target (100% on `buildGraph`).
+- Layout quirks (e.g., hierarchical nesting) handled in one place.
+- Slice-29a ships 7 Vitest cases covering every process/parallel combination we use today.
+
+---
+
+## DEC-31: Dual-pane default layout (graph left, transcript right)
+
+**Status:** Accepted
+
+**Context:** On `/runs/[id]` we need to show *what* is running (graph) and *what it's saying* (transcript) at the same time. Options:
+(a) graph-only, transcript in a modal;
+(b) transcript-only, graph in a drawer;
+(c) dual-pane side-by-side;
+(d) tabs switching between them.
+
+**Decision:** Dual-pane side-by-side on desktop (graph ~60%, transcript ~40%). Stacks vertically below 768 px width. Graph is the default *visual*; transcript is the default *detail*.
+
+**Alternatives rejected:**
+- **Graph-only + modal transcript** — requires a click to see content; bad for demos where the prospect wants to read the agent's output in real time.
+- **Tabs** — hides one pane at a time, which is exactly the opposite of what multi-agent systems need.
+- **Transcript-only with collapsible graph** — graph is the "wow" element; it can't be second-class.
+
+**Consequences:**
+- Graph + transcript share the same `useGraphState` hook derived from `events`.
+- Mobile stacks the graph above the transcript (scrollable); graph gets 60vh on mobile.
+- The kanban stays as a third view under `ViewToggle` for operators who want compact monitoring.
+- Share-page (slice-29d) reuses the dual-pane with a scrubber above — same layout, different data source.
+- Accessibility: both panes are `<section aria-label="…">` so screen readers can jump between them.

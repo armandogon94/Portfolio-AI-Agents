@@ -27,6 +27,7 @@ export interface WorkflowInfo {
   task_names: string[];
   parallel_tasks: string[][] | null;
   inputs_schema: Record<string, string>;
+  manager_agent?: string | null;
 }
 
 export interface CrewRunRequest {

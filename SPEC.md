@@ -1524,3 +1524,488 @@ After this spec is reviewed, the next command is:
 ```
 
 (The earlier v2 `/plan` prompt above remains for historical reference.)
+
+---
+
+# v4.1 — Graph Team View
+
+> **Baseline:** commit `4d250e2` on `main` (Phase-4 hardening landed 2026-04-16)
+> **Status:** Spec written 2026-04-16. Implementation not started.
+> **Source review:** Phase-4 five-axis review UI/UX brainstorm.
+
+---
+
+## v4.1 Objective
+
+Replace the static **kanban** on `/runs/[id]` with a live **node-and-edge graph** that makes the multi-agent system feel like a living thing during pitches. Same agents + same SSE backbone as Phase 4 — only the front-door UX changes.
+
+**Success looks like:** a prospect watching `http://localhost:3061/runs/…` sees a graph identical in structure to what they'd sketch on a whiteboard — each agent a node, each dependency an edge — with a pulsing halo on the active node, a shimmering edge toward the next node, a small "packet" dot sliding along that edge when a task completes, and a transcript pane on the right streaming the agent's text output in real time. When the run finishes, a scrubber at the bottom of the share page lets them replay the full sequence frame-by-frame.
+
+**Why not ship Phase 4 as-is:** the kanban reads as "wireframe" to reviewers. The graph view communicates *structure and flow* in 2 seconds — which is what the pitch is actually selling.
+
+---
+
+## v4.1 Goals and Non-Goals
+
+### Goals
+
+- **Node-and-edge graph** replaces the kanban for live runs (kanban stays available behind a view toggle for operators who want compact monitoring).
+- **Workflow-aware layout** — sequential = left-to-right pipeline, parallel = fork/join, hierarchical = tree with manager on top. Derived from the registry; no hand-authored positions.
+- **Live state** — active-node halo, edge shimmer, packet-dot animation, waiting-node dimming, failed-node error state.
+- **Transcript pane** — right-side live stream of per-agent output with auto-scroll, collapsible sections.
+- **Scrubber on share page** — time-series replay through `agent_events` so stakeholders can re-watch a run after the fact.
+- **Dual-pane layout** by default on desktop (graph left, transcript right); stacked on mobile.
+
+### Non-Goals (v4.1)
+
+- Workflow editor (drag-to-edit agents + edges) — tracked as v4.2 if there's demand.
+- Backend schema changes — all animation is derived client-side from the existing SSE + registry surfaces.
+- Any new voice/Twilio work. Deferred Important items from the Phase-4 review (I2-I6) also stay deferred.
+- Multi-run comparison view.
+- Collaborative cursors / multi-user dashboards.
+- Backward-compat shim for the kanban — it's demoted to a "Board" toggle, not removed.
+
+---
+
+## v4.1 Architecture Changes
+
+### New runtime topology
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Next.js Dashboard (:3061)                                       │
+│                                                                   │
+│  /runs/[id]                     /share/[token]                   │
+│  ┌──────────────────────┐       ┌──────────────────────┐         │
+│  │ Graph    │ Transcript │       │ Graph    │ Transcript│         │
+│  │  pane    │   pane     │       │  pane    │  pane     │         │
+│  │          │            │       │          │           │         │
+│  │ React    │ Per-agent  │       │ React    │ Per-agent │         │
+│  │ Flow     │ stream     │       │ Flow     │ stream    │         │
+│  │          │            │       │          │           │         │
+│  └──────────┴────────────┘       │ ── Scrubber ──       │         │
+│                                  └──────────────────────┘         │
+│                                                                   │
+└─────────────────────────────────────────────────────────────────┘
+              │                                  │
+              │ SSE (live)                       │ HTML replay
+              ▼                                  ▼
+        FastAPI :8060                     FastAPI :8060
+        /crew/run/{id}/events             /share/{token}
+                                          (replays agent_events table)
+```
+
+### Graph topology derivation (client-side)
+
+A new `lib/graph.ts` converts the `WorkflowInfo` returned by `GET /workflows` into React Flow's `nodes[]` + `edges[]`:
+
+```
+Workflow metadata                          Graph output
+─────────────────                          ──────────────
+name: "support_triage"                     nodes:
+process: "hierarchical"                      - triage_manager  (kind: manager)
+manager_agent: "triage_manager"              - kb_searcher     (kind: specialist)
+agent_roles: [triage_manager,                - sentiment_analyst
+               kb_searcher,                   - response_writer
+               sentiment_analyst,           edges:
+               response_writer]               - manager → kb_searcher  (kind: delegation)
+task_names: [triage_route, kb_search,        - manager → sentiment_analyst
+             sentiment_analyze,               - manager → response_writer
+             response_draft]
+parallel_tasks: null
+
+name: "meeting_prep"                       nodes:
+process: "sequential"                        - attendee_researcher
+parallel_tasks:                              - topic_researcher
+  - [attendee_research,                      - agenda_writer
+     topic_research]                         - talking_points_writer
+agent_roles: [attendee_researcher,         edges:
+              topic_researcher,              - attendee_researcher → agenda_writer (fan-in)
+              agenda_writer,                 - topic_researcher    → agenda_writer (fan-in)
+              talking_points_writer]         - agenda_writer       → talking_points_writer
+```
+
+The layout engine is **dagre** (`@dagrejs/dagre`) — rank-based directed acyclic graph layout. It's the same engine React Flow's official examples use; zero custom math.
+
+### Layout rules (derived from `process` + `parallel_tasks`)
+
+| Process | Layout |
+|---|---|
+| `sequential` with no `parallel_tasks` | Single rank per task; left-to-right pipeline. |
+| `sequential` with `parallel_tasks` | Tasks in the same parallel group share a rank; downstream tasks wait at the next rank (visual fan-in). |
+| `hierarchical` | Manager at rank 0, specialists at rank 1, fan-out edges. Task-wise edges follow order. |
+
+### Node-state contract
+
+| State | Visual | Source |
+|---|---|---|
+| `queued` | Dim, slate border, no glow | No event yet, or pre-run |
+| `active` | Indigo halo, pulsing ring (2s loop) | Latest event for this role has `state=active` or `waiting_on_tool` |
+| `waiting_on_tool` | Amber halo, spinner icon | Latest event state |
+| `waiting_on_agent` | Amber border, faded (60% opacity) | Latest event state (blocked on upstream) |
+| `completed` | Indigo solid, check glyph | Latest event state |
+| `failed` | Rose border, ✕ glyph, subtle shake animation | Latest event state |
+
+The node is the standard `AgentCard` reused from Phase 4, wrapped as a custom React Flow node. Its **halo** is a CSS pseudo-element with `box-shadow` + `@keyframes` pulse.
+
+### Edge-animation contract
+
+Edges respond to *state transitions* on their source node (client-side derivation — no backend change):
+
+| Edge state | Trigger | Visual |
+|---|---|---|
+| `idle` | Neither endpoint has fired yet | 1px slate stroke, 40% opacity |
+| `armed` | Source node is active; target is queued | 1.5px slate stroke, 80% opacity |
+| `firing` | Source completed AND target became active within the last 3s | Animated dashed stroke (stroke-dashoffset shimmer), indigo hue, 2px |
+| `packet` | Source completed and target is about to activate | A small circle (SVG `<circle>` animated via `framer-motion`'s `path` prop) travels from source handle to target handle over 600ms |
+| `completed` | Both endpoints are in a terminal state | 1.5px indigo stroke, 100% opacity, no animation |
+
+A React hook `useGraphState(events)` consumes the same event array as `useAgentEvents` and derives `{nodeStates, edgeStates}` as a memoized reducer. Same hook serves the live run and the share-page replay — the only difference is `events` is bounded by the scrubber index on the share page.
+
+### Transcript pane
+
+Right-hand 380px column on desktop, full-width bottom drawer on mobile.
+
+- One expandable section per agent (role icon + name + state chip).
+- Each section streams that agent's `detail` fields as lines with timestamps.
+- Current speaker (latest event's `agent_role`) is highlighted with a subtle left-border.
+- Auto-scrolls to the latest entry unless the user has scrolled up manually (IntersectionObserver on the "latest" marker).
+- Tool calls render inline as chips: `[web_search] AI in healthcare 2026`.
+- Collapsible "Crew" lifecycle section at the top for crew-level events.
+- Copy-all button for each agent so a prospect can grab an agent's output.
+
+### Scrubber (share page only)
+
+On `/share/[token]`, the fetched HTML from the backend stays (slice-27 still works). Above the graph, a compact scrubber:
+
+```
+────●─────────────────────── 47 / 119 events · 14:23
+```
+
+- Drag to replay the graph/transcript through any prefix of events.
+- Play/pause button re-plays at real-time speed (derived from `ts` deltas, 2× cap).
+- "Jump to failure" shortcut if any event has `state=failed`.
+- Keyboard: `←` / `→` step one event, `space` play/pause.
+- Renders from the `agent_events` already persisted by slice-27.
+
+### Component topology
+
+```
+dashboard/
+  app/runs/[id]/page.tsx            unchanged route
+    └─ <RunView taskId/>            reusable shell
+        ├─ <ViewToggle/>            toggle: graph (default) | board
+        ├─ <GraphPane/>              ← NEW — React Flow
+        │   ├─ <AgentNode/>          custom node component (reuses AgentCard)
+        │   ├─ <EdgeAnimated/>       custom edge component
+        │   ├─ <MiniMap/>            React Flow built-in
+        │   └─ <Controls/>           pan, zoom, fit-view
+        ├─ <TranscriptPane/>         ← NEW
+        │   ├─ <CrewLifecycleFeed/>
+        │   └─ <AgentTranscriptSection/> (one per agent)
+        └─ <KanbanPane/>             existing kanban, opt-in via ViewToggle
+  app/share/[token]/page.tsx         gains <Scrubber/> above the shell
+  lib/graph.ts                       ← NEW — workflow → nodes/edges + dagre layout
+  lib/useGraphState.ts               ← NEW — event[] → {nodeStates, edgeStates}
+```
+
+---
+
+## v4.1 Tech Stack Additions
+
+| Component | Version | Why |
+|-----------|---------|-----|
+| `@xyflow/react` | 12.x | Node-graph renderer (DEC-29) |
+| `@dagrejs/dagre` | 1.x | Automatic rank-based layout |
+| `framer-motion` | already installed | Packet-dot motion along edge |
+| `use-debounce` | 10.x | Scrubber drag debouncing (optional) |
+
+**Dependencies removed:** none. Kanban components stay as a toggle; deletion deferred to v4.2.
+
+---
+
+## v4.1 Commands Additions
+
+```bash
+# Dashboard
+cd dashboard
+npm install                       # pulls @xyflow/react, dagre
+npm run dev                       # http://localhost:3000 (docker: 3061)
+npm test                          # Vitest — includes graph reducer tests
+npm run test:e2e                  # Playwright — live run renders graph
+
+# Storybook (if we add it — open question)
+# npm run storybook              # port 6006 — visual regression for nodes/edges
+```
+
+---
+
+## v4.1 Project Structure Additions
+
+```
+dashboard/
+  app/
+    runs/[id]/page.tsx             (modified) — adds <ViewToggle/>
+    share/[token]/page.tsx         (modified) — adds <Scrubber/>
+  components/
+    GraphPane.tsx                  (NEW) — React Flow canvas
+    AgentNode.tsx                  (NEW) — custom node
+    EdgeAnimated.tsx               (NEW) — custom edge (shimmer + packet)
+    TranscriptPane.tsx             (NEW)
+    AgentTranscriptSection.tsx     (NEW) — per-agent feed
+    Scrubber.tsx                   (NEW) — share-page replay
+    ViewToggle.tsx                 (NEW) — graph vs board
+  lib/
+    graph.ts                       (NEW) — WorkflowInfo → nodes[]/edges[]
+    useGraphState.ts               (NEW) — reducer hook
+    dagreLayout.ts                 (NEW) — pure layout fn (easy to test)
+  __tests__/
+    graph-topology.test.ts         (NEW) — 7 cases covering all process types
+    use-graph-state.test.ts        (NEW) — reducer under scripted events
+    transcript-pane.test.tsx       (NEW) — autoscroll, collapse, copy
+    scrubber.test.tsx              (NEW) — drag, play/pause, keyboard
+  e2e/
+    graph-run.spec.ts              (NEW) — run from launcher → graph animates
+    scrubber.spec.ts               (NEW) — share page scrubber round-trip
+```
+
+No backend files change in v4.1 — the SSE + registry surfaces already provide everything the client needs.
+
+---
+
+## v4.1 Vertical Slices
+
+Each slice: goal → non-goals → files → test plan (RED) → acceptance criteria → risks → skills. Each ends with a single `feat(slice-29x): …` commit.
+
+### Slice 29a — Workflow graph topology (static render)
+
+**Goal:** Given a `WorkflowInfo`, render a correct graph (nodes + edges + dagre layout) on the run page. No animation yet; states are all `idle`. Toggle kanban/graph view.
+
+**Non-goals:** Live SSE updates (slice 29b); transcript pane (29c); share-page scrubber (29d).
+
+**Files created:**
+- `dashboard/lib/graph.ts` — `buildGraph(workflow: WorkflowInfo): {nodes, edges}`. Pure fn.
+- `dashboard/lib/dagreLayout.ts` — `layoutNodes(nodes, edges, direction='LR')`. Pure fn.
+- `dashboard/components/GraphPane.tsx` — React Flow canvas + fit-view + minimap + controls.
+- `dashboard/components/AgentNode.tsx` — custom node reusing AgentCard visual but stripped down for the graph context.
+- `dashboard/components/EdgeAnimated.tsx` — custom edge (idle only in this slice).
+- `dashboard/components/ViewToggle.tsx` — graph (default) ↔ board.
+- `dashboard/__tests__/graph-topology.test.ts` — 7 cases:
+  1. Sequential workflow → N nodes, N-1 edges, ranks increment left-to-right.
+  2. Parallel workflow → fan-out + fan-in edges at the right ranks.
+  3. Hierarchical workflow → manager at rank 0, specialists at rank 1, delegation edges.
+  4. Sequential + parallel mixed (meeting_prep) → correct topology.
+  5. Unknown process string → throws with a helpful message.
+  6. Empty `task_names` → empty graph (no crash).
+  7. Dagre `layoutNodes` produces distinct x/y for every node (no overlap).
+
+**Test plan (RED):**
+1. Vitest `graph-topology.test.ts` (7 cases above).
+2. Playwright `graph-run.spec.ts` — launches a `DEMO_MODE=true` research_report run, opens `/runs/[id]`, asserts the graph canvas has 4 node elements with the expected aria-labels.
+
+**Acceptance:**
+- Running any of the 7 registered workflows renders a graph with the correct topology.
+- View toggle preserves scroll position + task_id.
+- `npm test` green; `npm run test:e2e` green.
+
+**Risks & mitigations:**
+- **React Flow's React 19 compat:** verify `@xyflow/react@12` works with React 19.2 before any other code (install + Hello World). Mitigation: if incompatible, pin to React 18 or switch to `reactflow@11`.
+- **Dagre SSR hydration:** dagre is CPU-only; safe in a client component. Mitigation: mark `GraphPane` `"use client"`.
+
+**Skills:** `frontend-ui-engineering`, `source-driven-development` (verify @xyflow/react 12 + dagre API), `test-driven-development`.
+
+---
+
+### Slice 29b — Live animation (active halos, edge shimmer, packet dot)
+
+**Goal:** Hook SSE into the graph. Active nodes pulse; the edge from source→target shimmers during the 3s around the transition; a packet dot travels the edge once per transition.
+
+**Non-goals:** Transcript pane (29c); scrubber (29d).
+
+**Files created/modified:**
+- `dashboard/lib/useGraphState.ts` — reducer hook `(events) → {nodeStates, edgeStates, lastTransition}`.
+- `dashboard/components/AgentNode.tsx` — halo variants per state; CSS keyframe pulse.
+- `dashboard/components/EdgeAnimated.tsx` — shimmer (stroke-dashoffset) + packet dot (framer-motion along SVG path).
+- `dashboard/__tests__/use-graph-state.test.ts` — 6 cases:
+  1. Sequence of events → last-wins state per node.
+  2. `waiting_on_tool` maps to `waiting_on_tool` state (not `waiting_on_agent`).
+  3. `lastTransition` set when a new node becomes active.
+  4. Transition clears after 3s (time-dependent; use fake timers).
+  5. No events → all nodes `idle`.
+  6. Failed event → node state `failed`, no packet emitted to downstream.
+
+**Test plan (RED):**
+- Vitest `use-graph-state.test.ts` (6 cases).
+- Playwright `graph-run.spec.ts` extended: launches a run, asserts the `active` node gets an `aria-current="true"` during execution, and at least one edge gets the `data-edge-state="firing"` attribute.
+
+**Acceptance:**
+- Running a real (or demo-mode) crew visibly animates: halo on active agent, shimmer on outgoing edge, packet dot traveling before the next node lights up.
+- Reduced-motion media query disables the shimmer + packet (just the state chip changes).
+- No layout thrash (all animation via `transform` / `opacity` / `stroke-*`).
+
+**Risks & mitigations:**
+- **Packet-dot performance:** framer-motion along SVG path can be expensive. Mitigation: bail out of animation when >20 concurrent packets (unrealistic for our scale but documented).
+- **CSS pulse keyframes steal GPU on laptops:** use `will-change: filter` judiciously; test on battery-saver.
+
+**Skills:** `frontend-ui-engineering`, `test-driven-development`, `browser-testing-with-devtools` (verify no CLS).
+
+---
+
+### Slice 29c — Transcript pane (live stream)
+
+**Goal:** Right-hand pane showing per-agent output as it arrives. Auto-scroll, collapsible per-agent sections, tool-call chips.
+
+**Non-goals:** Search / full-text filtering of the transcript (future).
+
+**Files:**
+- `dashboard/components/TranscriptPane.tsx`
+- `dashboard/components/AgentTranscriptSection.tsx`
+- `dashboard/__tests__/transcript-pane.test.tsx` — 5 cases:
+  1. Renders one section per unique `agent_role`.
+  2. Sections stay collapsed by default except the currently-active one.
+  3. Auto-scrolls to latest entry.
+  4. User scroll-up stops auto-scroll until they return to bottom.
+  5. Copy-all writes the concatenated transcript to `navigator.clipboard`.
+
+**Acceptance:**
+- Live run: every SSE event appears in the transcript within 200ms.
+- Completed run: final transcript has all events in insertion order.
+- Copy-all button copies only the target agent's section.
+- Dual-pane layout: graph ~60% + transcript ~40% on desktop; stacked on mobile.
+
+**Risks & mitigations:**
+- **Large transcripts** (hundreds of events) rerender every section. Mitigation: virtualize per-section lists if >100 entries.
+- **Clipboard API** permissions in iframes. Mitigation: fall back to a selectable textarea.
+
+**Skills:** `frontend-ui-engineering`, `test-driven-development`.
+
+---
+
+### Slice 29d — Share-page scrubber (replay)
+
+**Goal:** On `/share/[token]`, a scrubber above the shell lets the viewer replay `agent_events` chronologically. Graph and transcript re-render to the scrubber's current index.
+
+**Non-goals:** Live-update the shared page if the owner runs a new task (out of scope; a shared link is a snapshot).
+
+**Files:**
+- `dashboard/components/Scrubber.tsx`
+- `dashboard/app/share/[token]/page.tsx` modified to pass `events` from the existing HTML payload (or augment the backend to also return JSON via a `?format=json` flag — decide in `/plan`).
+- `dashboard/__tests__/scrubber.test.tsx` — 4 cases:
+  1. Initial render: scrubber at max (latest event), graph shows final state.
+  2. Drag to index 0: all nodes `idle`, transcript empty.
+  3. Play: advances frame at `(ts[i+1] - ts[i]) / 2` intervals (2× speed cap).
+  4. `Space` key toggles play/pause; `←` / `→` step one event.
+
+**Acceptance:**
+- Scrubber feels like video playback — smooth, no stuttering.
+- "Jump to failure" appears only when any event has `state=failed`.
+- Keyboard controls work without hijacking page scroll.
+
+**Risks & mitigations:**
+- **Backend change needed?** If we must JSON-return events for the share page, that's a backend API addition. Will decide in `/plan`; likely we augment `GET /share/{token}?format=json` returning `{workflow, events}` so the client can render richly. The existing HTML path stays for non-JS consumers.
+
+**Skills:** `frontend-ui-engineering`, `api-and-interface-design` (if JSON endpoint added), `test-driven-development`.
+
+---
+
+### Slice 29e — Polish (shared-element transition, minimap fit, a11y)
+
+**Goal:** Make the whole thing feel cohesive.
+
+- Shared-element transition from launcher workflow card → graph view (framer-motion `layoutId`).
+- Minimap styling + sensible viewport defaults.
+- Full keyboard nav (tab through nodes, arrow-keys move selection).
+- `prefers-reduced-motion` parity — disable all animation, keep state chips + transcripts.
+- Dark-mode parity on graph colors.
+- Lighthouse a11y ≥ 95 on the run page.
+
+**Files:**
+- Small tweaks across `GraphPane`, `AgentNode`, `EdgeAnimated`, `TranscriptPane`.
+- `dashboard/__tests__/graph-pane.a11y.test.tsx` — axe-core integration, no violations at the `wcag2a` level.
+- `dashboard/e2e/graph-a11y.spec.ts` — keyboard-only journey from launcher → run → transcript.
+
+**Acceptance:**
+- Lighthouse a11y ≥ 95.
+- Keyboard-only user can launch a run, select a node, read its transcript, copy text.
+- All animations honor `prefers-reduced-motion`.
+
+**Skills:** `frontend-ui-engineering`, `browser-testing-with-devtools`.
+
+---
+
+## v4.1 Testing Strategy
+
+| Level | Tool | Location | Coverage target |
+|---|---|---|---|
+| Unit (pure) | Vitest | `dashboard/__tests__/*.test.ts{x}` | 100% on `lib/graph.ts` + `lib/useGraphState.ts` (pure reducers) |
+| Component | Vitest + Testing Library | `dashboard/__tests__/*.test.tsx` | every new component has at least one render + one interaction test |
+| E2E | Playwright | `dashboard/e2e/` | one spec per slice (graph-run, scrubber, graph-a11y) |
+| Backend | pytest | `tests/unit/` | ≥246 passing — no new backend tests unless scrubber slice 29d adds a JSON endpoint; in that case test the new endpoint |
+
+**TDD discipline:** every slice starts with a failing Vitest or Playwright test.
+
+---
+
+## v4.1 Boundaries
+
+### Always do
+- Derive graph topology from the registry — never hand-position nodes.
+- Run animation on `transform` / `opacity` / `stroke-*` only.
+- Keep kanban available behind the view toggle (zero-disruption migration).
+- Respect `prefers-reduced-motion` for every animation.
+- Test each new component with at least one Vitest render test.
+
+### Ask first
+- Adding a new backend endpoint (e.g., JSON scrubber payload for slice 29d).
+- Adding anything that changes the `AgentStateEvent` shape (would invalidate slice-27 persistence).
+- Introducing a third dashboard dependency ≥ 30KB gzipped.
+
+### Never do
+- Hard-code workflow positions or names in the UI (registry is the source of truth).
+- Ship an animation that drops below 30fps on a 2019 MacBook Air.
+- Remove or rename existing dashboard tests — adapt them instead.
+- Pre-render the graph server-side (SSR hydration mismatches + Dagre is CPU-only).
+
+---
+
+## v4.1 Risk Register
+
+| Risk | Likelihood | Mitigation | Owner slice |
+|---|---|---|---|
+| `@xyflow/react@12` incompatible with React 19.2 | Low | Hello-World prototype in slice 29a gate | 29a |
+| Packet-dot perf on long edges | Medium | Cap concurrent packets; bail out + static stroke | 29b |
+| Transcript autoscroll fights the user | Medium | IntersectionObserver on the "latest" marker, pause-when-scrolled-up | 29c |
+| Scrubber needs backend JSON endpoint | Medium | Decide in `/plan`; if yes, add `GET /share/{token}?format=json` | 29d |
+| Dashboard bundle size growth | Medium | `@xyflow/react` is ~50 KB gzipped; acceptable. Audit with `npm run build` after 29a. | 29a |
+| Kanban drift while graph is primary | Low | Covered by existing Phase-4 Vitest tests that still run | all |
+
+---
+
+## v4.1 Success Criteria
+
+- [ ] All 5 slices (29a-29e) implemented and committed on `main` with TDD.
+- [ ] Every Phase-4 Python test (246) still green.
+- [ ] Dashboard tests ≥ 25 (current 10 + ~15 new).
+- [ ] Playwright `graph-run.spec.ts` green against a `DEMO_MODE=true` run.
+- [ ] Lighthouse a11y ≥ 95 on `/runs/[id]`.
+- [ ] `docker compose -f docker-compose.dev.yml up` still boots 4 services; dashboard bundle < 500 KB gzipped.
+- [ ] Kanban available behind view toggle with no regression in existing Phase-4 tests.
+- [ ] `prefers-reduced-motion` honored — verified by manual browser toggle.
+
+---
+
+## v4.1 Open Questions
+
+1. **Storybook or no Storybook?** — helps visual regression on nodes/edges but adds tooling. Default: no; revisit in `/plan` if component test coverage isn't enough.
+2. **Share-page scrubber JSON endpoint vs embed in HTML** — decide in `/plan`. Leaning JSON endpoint (`GET /share/{token}?format=json`) for clean separation.
+3. **Kanban deletion timing** — keep until when? Proposal: keep through v4.2, delete when Phase-4 ops tests migrate to the graph view.
+
+---
+
+## v4.1 Next Step
+
+After this spec is reviewed, the next command is:
+
+```
+/plan SPEC.md v4.1 — slices 29a-29e. Break each slice into TDD sub-tasks (RED Vitest/Playwright test → GREEN implementation → refactor → commit). Reference DEC-29, DEC-30, DEC-31 in DECISIONS.md. Write PLAN.md with task order, dependencies, per-task acceptance + verify steps, and call out the `/share/{token}?format=json` decision for slice 29d explicitly. Docker + TDD + vertical slices only; no /ship. End with the /build prompt for slice 29a.
+```

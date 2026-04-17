@@ -52,6 +52,9 @@ beforeEach(() => {
   MockEventSource.instances = [];
   (globalThis as unknown as { EventSource: typeof MockEventSource }).EventSource =
     MockEventSource;
+  // Slice-29a ships the graph view as default. These tests still assert
+  // the kanban-column contract, so opt into board mode explicitly.
+  window.localStorage.setItem("view-mode", "board");
 });
 
 afterEach(() => {

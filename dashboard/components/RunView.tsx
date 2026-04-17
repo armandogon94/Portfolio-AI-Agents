@@ -3,9 +3,11 @@
 import { useMemo, useState } from "react";
 
 import { AgentCard } from "@/components/AgentCard";
+import GraphPane from "@/components/GraphPane";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { TimelineStrip } from "@/components/TimelineStrip";
 import { Button } from "@/components/ui/button";
+import { ViewToggle, useViewMode } from "@/components/ViewToggle";
 import { apiClient } from "@/lib/api";
 import { useAgentEvents } from "@/lib/sse";
 import type { AgentRunState, AgentStateEvent } from "@/lib/types";
@@ -51,6 +53,20 @@ function buildAgents(events: AgentStateEvent[]): Record<string, AgentView> {
 export default function RunView({ taskId }: { taskId: string }) {
   const stream = useAgentEvents(taskId);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useViewMode("graph");
+
+  // Latest-state per agent role — fed into the graph node's `state` data
+  // so the graph can render the right state chip for each agent today.
+  // Slice 29b will evolve this into a full animated reducer.
+  const nodeStates = useMemo<Record<string, AgentRunState>>(() => {
+    const out: Record<string, AgentRunState> = {};
+    for (const event of stream.events) {
+      if (event.agent_role && event.agent_role !== "crew") {
+        out[event.agent_role] = event.state;
+      }
+    }
+    return out;
+  }, [stream.events]);
 
   async function copyShareLink() {
     setShareMsg(null);
@@ -113,6 +129,7 @@ export default function RunView({ taskId }: { taskId: string }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <ViewToggle mode={viewMode} onChange={setViewMode} />
           <TimelineStrip startedAt={startedAt} completed={stream.completed} />
           <Button
             variant="outline"
@@ -144,52 +161,59 @@ export default function RunView({ taskId }: { taskId: string }) {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <KanbanColumn
-          title="Queued"
-          testId="column-queued"
-          tone="queued"
-          count={columns.queued.length}
-          emptyLabel="Nothing queued"
+      {viewMode === "graph" ? (
+        <GraphPane taskId={taskId} events={stream.events} nodeStates={nodeStates} />
+      ) : (
+        <div
+          data-testid="board-pane"
+          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"
         >
-          {columns.queued.map((a) => (
-            <AgentCard key={a.role} {...a} />
-          ))}
-        </KanbanColumn>
-        <KanbanColumn
-          title="Active"
-          testId="column-active"
-          tone="active"
-          count={columns.active.length}
-          emptyLabel="No agent working"
-        >
-          {columns.active.map((a) => (
-            <AgentCard key={a.role} {...a} />
-          ))}
-        </KanbanColumn>
-        <KanbanColumn
-          title="Waiting"
-          testId="column-waiting"
-          tone="waiting"
-          count={columns.waiting.length}
-          emptyLabel="No blockers"
-        >
-          {columns.waiting.map((a) => (
-            <AgentCard key={a.role} {...a} />
-          ))}
-        </KanbanColumn>
-        <KanbanColumn
-          title="Done"
-          testId="column-done"
-          tone="done"
-          count={columns.done.length}
-          emptyLabel="Nothing finished yet"
-        >
-          {columns.done.map((a) => (
-            <AgentCard key={a.role} {...a} />
-          ))}
-        </KanbanColumn>
-      </div>
+          <KanbanColumn
+            title="Queued"
+            testId="column-queued"
+            tone="queued"
+            count={columns.queued.length}
+            emptyLabel="Nothing queued"
+          >
+            {columns.queued.map((a) => (
+              <AgentCard key={a.role} {...a} />
+            ))}
+          </KanbanColumn>
+          <KanbanColumn
+            title="Active"
+            testId="column-active"
+            tone="active"
+            count={columns.active.length}
+            emptyLabel="No agent working"
+          >
+            {columns.active.map((a) => (
+              <AgentCard key={a.role} {...a} />
+            ))}
+          </KanbanColumn>
+          <KanbanColumn
+            title="Waiting"
+            testId="column-waiting"
+            tone="waiting"
+            count={columns.waiting.length}
+            emptyLabel="No blockers"
+          >
+            {columns.waiting.map((a) => (
+              <AgentCard key={a.role} {...a} />
+            ))}
+          </KanbanColumn>
+          <KanbanColumn
+            title="Done"
+            testId="column-done"
+            tone="done"
+            count={columns.done.length}
+            emptyLabel="Nothing finished yet"
+          >
+            {columns.done.map((a) => (
+              <AgentCard key={a.role} {...a} />
+            ))}
+          </KanbanColumn>
+        </div>
+      )}
     </div>
   );
 }
