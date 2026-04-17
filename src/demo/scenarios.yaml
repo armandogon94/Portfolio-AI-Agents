@@ -1,0 +1,45 @@
+# Canned demo scenarios (slice-28, DEC-25).
+# Each entry maps a scenario name -> inputs for `POST /crew/run` plus
+# a human description shown by `scripts/demo.py --list`.
+
+lead-qualifier-acme:
+  workflow: lead_qualifier
+  domain: general
+  topic: "Acme Corp — SaaS, 500 employees, Series C, US-based"
+  description: "Sales: qualifies Acme Corp against the ICP rubric and drafts a 1-page brief."
+
+sdr-outreach-cto:
+  workflow: sdr_outreach
+  domain: general
+  topic: "CTO at Acme Corp, ex-Stripe, recently posted about observability budgets"
+  description: "Sales: drafts three SDR outreach variants in parallel (formal / casual / provocative)."
+
+support-triage-refund:
+  workflow: support_triage
+  domain: general
+  topic: "My invoice for March is double what it usually is and support went silent. — Jane Doe, CFO at Acme"
+  description: "Support: hierarchical triage — manager delegates to KB searcher, sentiment analyst, and response writer."
+
+meeting-prep-monday:
+  workflow: meeting_prep
+  domain: general
+  topic: "30-min Monday call with Jane Doe (CFO, Acme) and Bob Chen (CTO, Acme) about Q2 renewal and multi-region migration"
+  description: "Ops: two researchers run in parallel, then agenda and talking-points writers."
+
+content-pipeline-blog:
+  workflow: content_pipeline
+  domain: general
+  topic: "How AI agents are changing customer support in 2026 — target audience: mid-market CTOs"
+  description: "Content: 5-agent editorial pipeline (research → outline → draft → edit → SEO)."
+
+cma-123-main:
+  workflow: real_estate_cma
+  domain: real_estate
+  topic: "123 Main St, Austin TX 78704, 3 bed 2 bath, 1850 sqft, 1994 build"
+  description: "Real Estate: parallel comps + market analysis, then appraiser + client-facing CMA."
+
+receptionist-book-table:
+  workflow: receptionist
+  domain: general
+  topic: "Book a table for 4 at Luigi's tonight at 7pm on behalf of Armando"
+  description: "Voice: receptionist workflow — intake, caller, post-call summary (no real Twilio call in demo mode)."

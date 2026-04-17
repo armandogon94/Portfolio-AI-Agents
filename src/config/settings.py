@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     # Whitelist — the tool refuses to dial numbers that aren't here.
     twilio_verified_to_numbers: list[str] = []
 
+    # Demo harness (slice-28, DEC-25). OFF by default so CI never runs
+    # against fixtures. When ON, LLMFactory returns a FakeLLM for the
+    # named scenario; missing fixtures raise loudly.
+    demo_mode: bool = False
+    demo_scenario: Optional[str] = None
+
     model_config = {
         "env_file": (".env", ".env.local"),
         "env_file_encoding": "utf-8",

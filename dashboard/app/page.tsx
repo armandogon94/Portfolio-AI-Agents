@@ -1,6 +1,8 @@
-import { Sparkles } from "lucide-react";
+import { PlayCircle, Sparkles } from "lucide-react";
 
 import LauncherForm from "@/components/LauncherForm";
+
+const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_ENABLED === "true";
 
 export default function Home() {
   return (
@@ -18,6 +20,15 @@ export default function Home() {
             Pick a pre-built crew, drop in a topic, and watch the team work —
             live kanban, share links, and PDF exports included.
           </p>
+          {DEMO_ENABLED ? (
+            <a
+              href="/runs?demo=1"
+              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500 px-3 py-1 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-indigo-600"
+            >
+              <PlayCircle className="h-3.5 w-3.5" aria-hidden />
+              Run demo scenario (deterministic)
+            </a>
+          ) : null}
         </header>
         <LauncherForm />
       </div>

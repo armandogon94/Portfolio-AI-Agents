@@ -14,6 +14,36 @@ logger = logging.getLogger(__name__)
 DOMAINS = ["general", "healthcare", "finance", "real_estate", "legal", "education", "engineering"]
 
 
+def _demo_scenarios_help() -> str:
+    """Render the available demo scenarios as a Chainlit-friendly markdown list.
+
+    Slice-28: the /demo command lists deterministic scenarios served by the
+    FakeLLM when DEMO_MODE=true. Users can copy-paste the command shown to
+    run any scenario without hitting Ollama or Anthropic.
+    """
+    try:
+        from src.demo import load_scenarios
+
+        scenarios = load_scenarios()
+    except Exception as exc:  # pragma: no cover — demo module optional at dev time
+        return f"Demo scenarios unavailable: {exc}"
+
+    if not scenarios:
+        return "No demo scenarios registered."
+    lines = [
+        "**Canned demo scenarios** (set `DEMO_MODE=true` + `DEMO_SCENARIO=<name>`):",
+        "",
+    ]
+    for name, entry in sorted(scenarios.items()):
+        desc = entry.get("description", "")
+        lines.append(f"- `{name}` — {desc}")
+    lines.append("")
+    lines.append(
+        "Run locally: `DEMO_MODE=true DEMO_SCENARIO=<name> uv run python scripts/demo.py --scenario <name>`"
+    )
+    return "\n".join(lines)
+
+
 @cl.on_chat_start
 async def on_chat_start():
     cl.user_session.set("domain", None)
@@ -36,6 +66,11 @@ async def on_chat_start():
 @cl.on_message
 async def on_message(message: cl.Message):
     content = message.content.strip()
+
+    # Handle /demo command — list canned deterministic scenarios (slice-28).
+    if content.lower().startswith("/demo"):
+        await cl.Message(content=_demo_scenarios_help()).send()
+        return
 
     # Handle /domain command
     if content.lower().startswith("/domain"):

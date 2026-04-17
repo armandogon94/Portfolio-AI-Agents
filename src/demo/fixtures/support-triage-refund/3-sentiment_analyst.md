@@ -1,0 +1,1 @@
+{"urgency": "high", "emotion": "frustrated", "escalation_flags": ["legal_mention", "exec_contact", "silence_>3d"], "rationale": "CFO is the contact, explicitly referenced silence, and tone signals churn risk."}

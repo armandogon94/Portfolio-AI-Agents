@@ -1,0 +1,3 @@
+- AI agents replacing tier-1 support: common in 2026, 40% deflection at top vendors.
+- Human-in-the-loop stays the norm for tier-2/3: escalation paths + QA.
+- Sources: Gartner 2026 Q1 Customer Service forecast; Zendesk State of Service.

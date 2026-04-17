@@ -9,7 +9,26 @@ class LLMFactory:
     """Creates LLM instances based on the configured provider."""
 
     @staticmethod
-    def create(temperature: float = 0.7, max_tokens: int = 2048) -> LLM:
+    def create(temperature: float = 0.7, max_tokens: int = 2048):
+        # Slice-28 / DEC-25: DEMO_MODE swaps the real LLM for a FakeLLM
+        # that serves pre-recorded fixtures. Never silently fall through
+        # to a live LLM if the scenario is misconfigured — raise so a
+        # broken demo can't fake success.
+        # Strict `is True` check — unrelated tests that replace `settings`
+        # with a MagicMock would otherwise fall into the FakeLLM branch
+        # because `getattr` returns a truthy mock.
+        if getattr(settings, "demo_mode", False) is True:
+            scenario = getattr(settings, "demo_scenario", None)
+            if not scenario:
+                raise ValueError(
+                    "DEMO_MODE=true but DEMO_SCENARIO is not set. "
+                    "Pick one from scripts/demo.py --list."
+                )
+            from src.demo.fake_llm import FakeLLM
+
+            logger.info(f"DEMO_MODE on — using FakeLLM for scenario='{scenario}'")
+            return FakeLLM(scenario=scenario)
+
         provider = settings.llm_provider
 
         if provider == LLMProvider.OLLAMA:
