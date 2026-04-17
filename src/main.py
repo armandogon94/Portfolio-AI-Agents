@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import secrets
+import urllib.parse
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from fastapi import BackgroundTasks, FastAPI, Depends, Request
@@ -53,8 +54,9 @@ logger = logging.getLogger(__name__)
 # Rate limiter (DEC-03)
 limiter = Limiter(key_func=get_remote_address)
 
-# Task store for async execution (DEC-02)
-task_store = TaskStore()
+# Task store for async execution (DEC-02). Wired to the voice session store
+# so expired voice tasks don't leak sessions (Phase-4 review I1).
+task_store = TaskStore(voice_session_store=get_voice_session_store())
 
 # Metrics collector (DEC-07)
 metrics_collector = MetricsCollector()
@@ -109,6 +111,9 @@ async def lifespan(app: FastAPI):
             ts=event.ts,
         )
     )
+    # Phase-4 hardening C2: periodic cleanup of terminal state-bus channels
+    # so the dict can't grow unbounded across long-running deployments.
+    cleanup_task = bus.start_cleanup_loop(interval_seconds=60.0)
 
     # Share-link secret (slice-27, DEC-24). Required in prod; auto-generated
     # in dev with a warning so the URLs still work on a fresh checkout.
@@ -119,8 +124,15 @@ async def lifespan(app: FastAPI):
             )
         settings.share_secret = secrets.token_urlsafe(32)
         logger.info("Generated a runtime SHARE_SECRET (dev convenience; tokens invalidate on restart)")
-    yield
-    logger.info("Shutting down AI Agent System")
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except (asyncio.CancelledError, Exception):  # noqa: BLE001 — best-effort shutdown
+            pass
+        logger.info("Shutting down AI Agent System")
 
 
 app = FastAPI(
@@ -347,11 +359,14 @@ async def crew_status(request: Request, task_id: str):
 
 
 @app.get("/crew/run/{task_id}/events")
+@limiter.limit("10/minute")
 async def crew_run_events(request: Request, task_id: str):
     """Stream live per-agent state events as Server-Sent Events (slice-19, DEC-16).
 
     Ends with a `run_complete` event once the crew reaches a terminal state.
     Unknown task_id → 404. Auth enforced by ApiKeyMiddleware when API_KEY is set.
+    Phase-4 hardening C3: rate-limited so authed clients can't hold unlimited
+    long-lived connections.
     """
     if task_store.get(task_id) is None:
         raise NotFoundError(f"Task '{task_id}' not found")
@@ -392,9 +407,11 @@ async def voice_twiml_webhook(request: Request, task_id: str):
             content="forbidden", status_code=403, media_type="text/plain"
         )
 
-    # Read form body once; Twilio posts application/x-www-form-urlencoded.
-    form = await request.form()
-    params = {k: v for k, v in form.items()}
+    # Phase-4 hardening C4: validate the signature BEFORE parsing the form.
+    # We read the raw body ourselves and reconstruct the params from it so
+    # an attacker can't force expensive form parsing without a valid signature.
+    raw_body = await request.body()
+    params = dict(urllib.parse.parse_qsl(raw_body.decode("utf-8", errors="replace")))
 
     auth_token = settings.twilio_auth_token or ""
     validator = RequestValidator(auth_token)
@@ -524,9 +541,14 @@ async def share_run(request: Request, token: str):
 @app.get("/crew/history/{task_id}/pdf")
 @limiter.limit("30/minute")
 async def crew_history_pdf(request: Request, task_id: str):
-    """Download a PDF render of a completed run (slice-27, DEC-23). Auth-gated."""
+    """Download a PDF render of a completed run (slice-27, DEC-23). Auth-gated.
+
+    Phase-4 hardening C1: WeasyPrint is sync + CPU-bound (~500ms-2s per page),
+    so we run it on a worker thread rather than blocking the event loop that
+    also feeds SSE subscribers and concurrent requests.
+    """
     data = _load_run_for_render(task_id)
-    pdf_bytes = render_run_pdf(**data)
+    pdf_bytes = await asyncio.to_thread(render_run_pdf, **data)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

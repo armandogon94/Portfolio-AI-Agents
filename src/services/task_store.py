@@ -9,10 +9,20 @@ import threading
 
 
 class TaskStore:
-    def __init__(self, ttl_seconds: int = 3600):
+    def __init__(self, ttl_seconds: int = 3600, voice_session_store=None):
+        """Parameters
+        ----------
+        ttl_seconds:
+            In-memory retention window.
+        voice_session_store:
+            Optional :class:`VoiceSessionStore`. When provided, `cleanup()`
+            cascades the eviction so abandoned voice sessions don't leak
+            (Phase-4 review item I1).
+        """
         self._tasks: dict[str, dict] = {}
         self._lock = threading.Lock()
         self._ttl = ttl_seconds
+        self._voice_sessions = voice_session_store
 
     def create(self, topic: str, domain: str | None, webhook_url: str | None = None) -> str:
         task_id = str(uuid.uuid4())
@@ -48,9 +58,11 @@ class TaskStore:
             return sum(1 for t in self._tasks.values() if t["status"] in ("pending", "running"))
 
     def cleanup(self) -> int:
-        """Remove expired tasks. Returns number removed."""
+        """Remove expired tasks. Cascades to the VoiceSessionStore when wired.
+
+        Returns the number of tasks removed.
+        """
         now = time.time()
-        removed = 0
         with self._lock:
             expired = [
                 tid for tid, t in self._tasks.items()
@@ -58,5 +70,10 @@ class TaskStore:
             ]
             for tid in expired:
                 del self._tasks[tid]
-                removed += 1
-        return removed
+        if self._voice_sessions is not None:
+            for tid in expired:
+                try:
+                    self._voice_sessions.clear(tid)
+                except Exception:  # pragma: no cover — cleanup must not raise
+                    pass
+        return len(expired)

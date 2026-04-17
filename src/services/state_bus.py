@@ -156,6 +156,24 @@ class AgentStateBus:
                 del self._channels[tid]
             return len(expired)
 
+    def start_cleanup_loop(self, interval_seconds: float = 60.0) -> asyncio.Task:
+        """Start a background task that calls :meth:`cleanup` periodically.
+
+        Phase-4 hardening — without this, the channels dict grows forever.
+        Returned task must be cancelled on shutdown; the lifespan owns it.
+        """
+        async def _loop() -> None:
+            while True:
+                try:
+                    removed = self.cleanup()
+                    if removed:
+                        logger.debug(f"AgentStateBus cleaned up {removed} channels")
+                except Exception:  # pragma: no cover — telemetry never kills the loop
+                    logger.exception("AgentStateBus cleanup raised; continuing")
+                await asyncio.sleep(interval_seconds)
+
+        return asyncio.create_task(_loop(), name="agent-state-bus-cleanup")
+
 
 _bus: AgentStateBus | None = None
 
