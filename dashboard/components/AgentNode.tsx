@@ -71,14 +71,31 @@ export function AgentNode({ data }: AgentNodeProps) {
     state === "waiting_on_tool" ||
     state === "waiting_on_agent";
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      // Emit a cross-pane event the TranscriptPane listens for — keeps
+      // the graph/transcript coupling loose (no shared ref, no prop
+      // drilling through RunView).
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("graph:focus-role", { detail: { role: data.role } }),
+        );
+      }
+    }
+  }
+
   return (
     <div
       data-testid={`agent-node-${data.role}`}
       data-node-state={state}
-      aria-label={`Agent ${prettyRole(data.role)} — ${state}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`Agent ${prettyRole(data.role)} — ${state}. Press Enter to jump to transcript.`}
       aria-current={isLive ? "true" : undefined}
+      onKeyDown={handleKeyDown}
       className={[
-        "min-w-[12rem] rounded-xl border bg-white p-3 shadow-sm transition-shadow",
+        "min-w-[12rem] rounded-xl border bg-white p-3 shadow-sm transition-shadow focus:outline-none focus:ring-2 focus:ring-indigo-500",
         "dark:bg-zinc-900/60",
         isManager && state === "queued"
           ? "border-indigo-300 ring-1 ring-indigo-200/50 dark:border-indigo-500/40 dark:ring-indigo-500/20"

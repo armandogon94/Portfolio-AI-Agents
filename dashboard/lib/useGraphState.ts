@@ -56,6 +56,13 @@ export function useGraphState(
 
   useEffect(() => {
     if (!events.length) return;
+    // Respect prefers-reduced-motion: the reducer still runs on every new
+    // event, but we don't tick a 250ms heartbeat to decay firing → armed.
+    // Edges just stay in their last derived state until the next event.
+    if (typeof window !== "undefined" && window.matchMedia) {
+      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+      if (mq.matches) return;
+    }
     const id = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(id);
   }, [events.length]);

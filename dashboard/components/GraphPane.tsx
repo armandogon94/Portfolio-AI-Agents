@@ -13,6 +13,7 @@ import {
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { motion } from "framer-motion";
 
 import { AgentNode } from "@/components/AgentNode";
 import { EdgeAnimated } from "@/components/EdgeAnimated";
@@ -21,6 +22,15 @@ import { buildGraph } from "@/lib/graph";
 import { layoutNodes } from "@/lib/dagreLayout";
 import { useGraphState } from "@/lib/useGraphState";
 import type { AgentStateEvent, WorkflowInfo } from "@/lib/types";
+
+const MINIMAP_NODE_FILL: Record<string, string> = {
+  queued: "#e4e4e7", // zinc-200
+  active: "#a5b4fc", // indigo-300
+  waiting_on_tool: "#fcd34d", // amber-300
+  waiting_on_agent: "#fde68a", // amber-200
+  completed: "#6366f1", // indigo-500
+  failed: "#fb7185", // rose-400
+};
 
 export interface GraphPaneProps {
   taskId: string;
@@ -105,24 +115,48 @@ function GraphPaneInner({ workflowName, events = [] }: GraphPaneProps) {
       data-testid="graph-pane"
       aria-label="Workflow graph"
       role="region"
-      className="h-[32rem] w-full overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60"
+      className="flex w-full flex-col overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900/60"
     >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={NODE_TYPES}
-        edgeTypes={EDGE_TYPES}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        proOptions={{ hideAttribution: true }}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={false}
+      <motion.header
+        layoutId={`wf-${workflow.name}`}
+        className="flex flex-wrap items-center gap-2 border-b border-zinc-100 bg-zinc-50/60 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800/30 dark:text-zinc-400"
       >
-        <Background gap={20} size={1} className="bg-zinc-50/40 dark:bg-zinc-950/40" />
-        <MiniMap pannable zoomable className="!bg-white/80 dark:!bg-zinc-900/80" />
-        <Controls showInteractive={false} />
-      </ReactFlow>
+        <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
+          {workflow.process}
+        </span>
+        <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+          {workflow.agent_roles.length} agents · {workflow.task_names.length} tasks
+        </span>
+        <span className="truncate">{workflow.description}</span>
+      </motion.header>
+      <div className="h-[28rem] w-full">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={NODE_TYPES}
+          edgeTypes={EDGE_TYPES}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+          proOptions={{ hideAttribution: true }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+        >
+          <Background gap={20} size={1} className="bg-zinc-50/40 dark:bg-zinc-950/40" />
+          <MiniMap
+            pannable
+            zoomable
+            nodeColor={(n) =>
+              MINIMAP_NODE_FILL[
+                (n.data as { state?: string } | undefined)?.state ?? "queued"
+              ] ?? MINIMAP_NODE_FILL.queued
+            }
+            nodeStrokeColor="#6366f1"
+            className="!bg-white/80 dark:!bg-zinc-900/80"
+          />
+          <Controls showInteractive={false} />
+        </ReactFlow>
+      </div>
     </div>
   );
 }

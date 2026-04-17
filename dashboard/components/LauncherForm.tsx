@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -110,7 +111,10 @@ export default function LauncherForm() {
               </SelectContent>
             </Select>
             {selectedWorkflow ? (
-              <div className="mt-1 rounded-md border border-zinc-100 bg-zinc-50/60 p-3 text-xs leading-relaxed text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800/30 dark:text-zinc-400">
+              <motion.div
+                layoutId={`wf-${selectedWorkflow.name}`}
+                className="mt-1 rounded-md border border-zinc-100 bg-zinc-50/60 p-3 text-xs leading-relaxed text-zinc-600 dark:border-zinc-800 dark:bg-zinc-800/30 dark:text-zinc-400"
+              >
                 <div className="mb-1 flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
                     {selectedWorkflow.process}
@@ -121,7 +125,7 @@ export default function LauncherForm() {
                   </span>
                 </div>
                 {selectedWorkflow.description}
-              </div>
+              </motion.div>
             ) : null}
           </div>
 

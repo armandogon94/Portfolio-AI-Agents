@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AgentTranscriptSection } from "@/components/AgentTranscriptSection";
 import type { AgentStateEvent } from "@/lib/types";
@@ -48,6 +48,24 @@ export function TranscriptPane({ events }: TranscriptPaneProps) {
     return events[events.length - 1]?.agent_role ?? null;
   }, [events]);
 
+  // Listen for keyboard-driven focus jumps from the graph (slice-29e).
+  // Enter on a graph node dispatches graph:focus-role with the role name;
+  // we expand + scroll that role's section into view.
+  const [focusedRole, setFocusedRole] = useState<string | null>(null);
+  useEffect(() => {
+    function handler(e: Event) {
+      const role = (e as CustomEvent<{ role: string }>).detail?.role;
+      if (!role) return;
+      setFocusedRole(role);
+      const el = document.getElementById(`transcript-${role}`);
+      if (el && typeof el.scrollIntoView === "function") {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    }
+    window.addEventListener("graph:focus-role", handler);
+    return () => window.removeEventListener("graph:focus-role", handler);
+  }, []);
+
   return (
     <aside
       aria-label="Transcript"
@@ -57,7 +75,7 @@ export function TranscriptPane({ events }: TranscriptPaneProps) {
         <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
           Transcript
         </h2>
-        <span className="font-mono text-[10px] text-zinc-400">
+        <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400">
           {events.length} event{events.length === 1 ? "" : "s"}
         </span>
       </header>
@@ -71,7 +89,7 @@ export function TranscriptPane({ events }: TranscriptPaneProps) {
             key={role}
             role={role}
             events={agentEvents}
-            isActive={role === activeRole}
+            isActive={role === activeRole || role === focusedRole}
           />
         ))
       )}

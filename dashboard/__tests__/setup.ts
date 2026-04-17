@@ -1,4 +1,9 @@
 import "@testing-library/jest-dom/vitest";
+import * as matchers from "vitest-axe/matchers";
+import { expect } from "vitest";
+
+// Register vitest-axe's `toHaveNoViolations` assertion globally (slice-29e).
+expect.extend(matchers);
 import { afterAll, afterEach, beforeAll } from "vitest";
 
 import { server } from "./mocks/server";

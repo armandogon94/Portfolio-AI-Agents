@@ -129,6 +129,42 @@ describe("useGraphState reducer", () => {
     expect(result.current.lastTransition).toBeNull();
   });
 
+  it("skips the decay heartbeat under prefers-reduced-motion but still derives state", () => {
+    const setInterval = vi.spyOn(globalThis, "setInterval");
+    const reducedMotion = vi.fn<(query: string) => MediaQueryList>(
+      (query: string) => ({
+        matches: query.includes("reduce"),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList,
+    );
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = reducedMotion as unknown as typeof window.matchMedia;
+    try {
+      const { result } = renderHook(() =>
+        useGraphState(
+          [
+            ev("researcher", "completed", Date.now() - 200),
+            ev("analyst", "active", Date.now() - 100),
+          ],
+          RESEARCH_REPORT,
+        ),
+      );
+      // State still applies — the reducer is pure.
+      expect(result.current.nodeStates.analyst).toBe("active");
+      // But no animation heartbeat kicked in.
+      expect(setInterval).not.toHaveBeenCalled();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+      setInterval.mockRestore();
+    }
+  });
+
   it("failed event sets node to failed and blocks downstream firing", () => {
     const events: AgentStateEvent[] = [
       ev("researcher", "active", 1_000),

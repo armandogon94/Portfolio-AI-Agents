@@ -102,7 +102,7 @@ export default function RunView({ taskId }: { taskId: string }) {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-4 rounded-xl border border-zinc-200/80 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:bg-zinc-900/60">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Live crew run
           </p>
           <h1 className="mt-1 text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl dark:text-zinc-50">
@@ -112,7 +112,7 @@ export default function RunView({ taskId }: { taskId: string }) {
                 : "Run complete"
               : "Crew is working"}
           </h1>
-          <p className="mt-1 truncate font-mono text-[11px] text-zinc-400">
+          <p className="mt-1 truncate font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
             {taskId}
           </p>
         </div>

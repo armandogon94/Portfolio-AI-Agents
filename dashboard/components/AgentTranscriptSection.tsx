@@ -165,7 +165,7 @@ export function AgentTranscriptSection({
                 key={`${event.ts}-${idx}`}
                 className="flex flex-col gap-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400"
               >
-                <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-zinc-400">
+                <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   <span>{formatTs(event.ts)}</span>
                   <span>·</span>
                   <span>{event.state}</span>
