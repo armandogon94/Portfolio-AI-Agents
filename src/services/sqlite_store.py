@@ -17,9 +17,12 @@ CREATE TABLE IF NOT EXISTS crew_results (
     domain TEXT,
     result TEXT NOT NULL,
     duration_seconds REAL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    workflow TEXT NOT NULL DEFAULT 'research_report'
 );
 """
+
+_DEFAULT_WORKFLOW = "research_report"
 
 _CREATE_EVENTS_TABLE = """
 CREATE TABLE IF NOT EXISTS agent_events (
@@ -55,8 +58,24 @@ class SQLiteResultStore:
             conn.execute(_CREATE_TABLE)
             conn.execute(_CREATE_EVENTS_TABLE)
             conn.execute(_CREATE_EVENTS_INDEX)
+            self._migrate_workflow_column(conn)
             conn.commit()
         logger.debug(f"SQLite result store ready at {self._db_path}")
+
+    @staticmethod
+    def _migrate_workflow_column(conn: sqlite3.Connection) -> None:
+        """Slice-29d: DBs created before this slice have no `workflow` column.
+        Add it with the research_report default so existing rows are usable by
+        the share-page scrubber. Safe to run on every boot — the column lookup
+        short-circuits when the column is already present.
+        """
+        cols = {row["name"] for row in conn.execute("PRAGMA table_info(crew_results)")}
+        if "workflow" in cols:
+            return
+        conn.execute(
+            f"ALTER TABLE crew_results ADD COLUMN workflow TEXT "
+            f"NOT NULL DEFAULT '{_DEFAULT_WORKFLOW}'"
+        )
 
     def save(
         self,
@@ -65,6 +84,7 @@ class SQLiteResultStore:
         domain: str | None,
         result: str,
         duration_seconds: float = 0.0,
+        workflow: str = _DEFAULT_WORKFLOW,
     ) -> None:
         """Persist a completed task result."""
         created_at = datetime.now(timezone.utc).isoformat()
@@ -72,10 +92,10 @@ class SQLiteResultStore:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO crew_results
-                    (task_id, topic, domain, result, duration_seconds, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (task_id, topic, domain, result, duration_seconds, created_at, workflow)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (task_id, topic, domain, result, duration_seconds, created_at),
+                (task_id, topic, domain, result, duration_seconds, created_at, workflow),
             )
             conn.commit()
         logger.debug(f"Saved result for task {task_id}")

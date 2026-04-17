@@ -1,45 +1,71 @@
 /**
- * Public read-only share page (slice-27).
+ * Public read-only share page (slice-27, slice-29d).
  *
- * Server-renders the FastAPI /share/{token} response so the prospect
- * gets a single fetch without CORS or client-side EventSource.
- * The backend enforces HMAC verification + 7-day TTL.
+ * Fetches GET /share/{token}?format=json on the client, hands the typed
+ * payload to <ShareRunView/> (dual-pane graph + transcript with scrubber).
+ * The HTML variant of /share/{token} still exists on the backend for curl
+ * users / PDF rendering — this page opts into the JSON branch.
+ *
+ * Client-side fetch (vs RSC) is deliberate: the scrubber is purely
+ * interactive, no SEO surface, and testing with Playwright route
+ * interception only works when the request originates from the browser.
  */
+"use client";
+
+import { use, useEffect, useState } from "react";
+
+import { ShareRunView, type SharePayload } from "@/components/ShareRunView";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8060";
 
-export default async function SharePage({
+type LoadState =
+  | { kind: "loading" }
+  | { kind: "ok"; payload: SharePayload }
+  | { kind: "error"; status: number };
+
+export default function SharePage({
   params,
 }: {
   params: Promise<{ token: string }>;
 }) {
-  const { token } = await params;
-  const resp = await fetch(`${API_URL}/share/${token}`, { cache: "no-store" });
+  const { token } = use(params);
+  const [state, setState] = useState<LoadState>({ kind: "loading" });
 
-  if (resp.status === 410) {
-    return <Expired />;
-  }
-  if (resp.status === 403) {
-    return <Forbidden />;
-  }
-  if (resp.status === 404) {
-    return <Missing />;
-  }
-  if (!resp.ok) {
-    return <Failed status={resp.status} />;
-  }
+  useEffect(() => {
+    let active = true;
+    fetch(`${API_URL}/share/${token}?format=json`, { cache: "no-store" })
+      .then(async (resp) => {
+        if (!active) return;
+        if (!resp.ok) {
+          setState({ kind: "error", status: resp.status });
+          return;
+        }
+        const payload = (await resp.json()) as SharePayload;
+        setState({ kind: "ok", payload });
+      })
+      .catch(() => {
+        if (!active) return;
+        setState({ kind: "error", status: 0 });
+      });
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
-  const html = await resp.text();
-  return (
-    <main className="flex flex-1 flex-col bg-zinc-50 px-6 py-10 font-sans dark:bg-zinc-950">
-      <div
-        className="mx-auto w-full max-w-4xl rounded-md border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
-        // The backend HTML is trusted (it's our own template, server-rendered
-        // with autoescape). CSP on the backend route forbids scripts anyway.
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    </main>
-  );
+  if (state.kind === "loading") {
+    return (
+      <StatusCard title="Loading shared run…">
+        Fetching the replay payload from the backend.
+      </StatusCard>
+    );
+  }
+  if (state.kind === "error") {
+    if (state.status === 410) return <Expired />;
+    if (state.status === 403) return <Forbidden />;
+    if (state.status === 404) return <Missing />;
+    return <Failed status={state.status} />;
+  }
+  return <ShareRunView payload={state.payload} />;
 }
 
 function Expired() {

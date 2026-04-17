@@ -138,3 +138,55 @@ class TestSQLiteResultStore:
         assert [e["state"] for e in events] == ["active", "completed"]
         assert all(e["task_id"] == "e-1" for e in events)
         assert store.replay_events("no-such-task") == []
+
+    def test_save_persists_workflow_column(self, store):
+        """Slice-29d: new workflow column round-trips through save/get."""
+        store.save(
+            task_id="wf-1",
+            topic="t",
+            domain=None,
+            result="r",
+            duration_seconds=0.5,
+            workflow="competitive_research",
+        )
+        row = store.get("wf-1")
+        assert row is not None
+        assert row["workflow"] == "competitive_research"
+
+    def test_save_workflow_defaults_to_research_report(self, store):
+        """Callers that don't pass workflow get the Phase-4 default."""
+        store.save(task_id="wf-2", topic="t", domain=None, result="r")
+        row = store.get("wf-2")
+        assert row is not None
+        assert row["workflow"] == "research_report"
+
+    def test_workflow_column_auto_added_to_legacy_dbs(self, tmp_path):
+        """SQLiteResultStore migrates pre-29d DBs by ALTER TABLE ADD COLUMN."""
+        import sqlite3
+
+        db = tmp_path / "legacy.db"
+        # Seed a DB that predates slice-29d: no workflow column.
+        conn = sqlite3.connect(str(db))
+        conn.executescript(
+            """
+            CREATE TABLE crew_results (
+                task_id TEXT PRIMARY KEY,
+                topic TEXT NOT NULL,
+                domain TEXT,
+                result TEXT NOT NULL,
+                duration_seconds REAL,
+                created_at TEXT NOT NULL
+            );
+            INSERT INTO crew_results VALUES ('legacy-1', 't', NULL, 'r', 1.0, '2026-01-01T00:00:00');
+            """
+        )
+        conn.commit()
+        conn.close()
+
+        from src.services.sqlite_store import SQLiteResultStore
+
+        migrated = SQLiteResultStore(db_path=str(db))
+        row = migrated.get("legacy-1")
+        assert row is not None
+        # Legacy row back-filled with the default.
+        assert row["workflow"] == "research_report"

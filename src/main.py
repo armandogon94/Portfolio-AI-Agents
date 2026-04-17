@@ -269,6 +269,7 @@ def _execute_crew(
             domain=domain,
             result=result,
             duration_seconds=round(duration, 2),
+            workflow=workflow,
         )
         bus.publish(
             task_id,
@@ -476,7 +477,11 @@ async def crew_history(request: Request, limit: int = 20):
 
 def _load_run_for_render(task_id: str) -> dict:
     """Gather whitelisted fields for the share/PDF render. Never returns
-    webhook_url, raw tool I/O, or internal config (slice-27 security)."""
+    webhook_url, raw tool I/O, or internal config (slice-27 security).
+
+    Slice-29d: now also returns ``workflow`` so the share-page scrubber can
+    reconstruct the graph topology client-side.
+    """
     row = sqlite_store.get(task_id)
     if row is None:
         raise NotFoundError(f"Task '{task_id}' not found")
@@ -485,6 +490,7 @@ def _load_run_for_render(task_id: str) -> dict:
         "task_id": row["task_id"],
         "topic": row["topic"],
         "domain": row["domain"],
+        "workflow": row.get("workflow") or "research_report",
         "result": row["result"],
         "duration_seconds": row.get("duration_seconds") or 0.0,
         "status": "completed",
@@ -516,11 +522,15 @@ async def share_mint(request: Request, body: dict):
     }
 
 
-@app.get("/share/{token}", response_class=HTMLResponse)
+@app.get("/share/{token}")
 async def share_run(request: Request, token: str):
     """Public read-only render of a completed run (slice-27, DEC-24).
 
     HMAC-signed token; 7-day default TTL. No API key required.
+
+    Slice-29d: ``?format=json`` returns the same whitelisted payload as JSON
+    so the dashboard's share page can drive a rich scrubber UI. Default
+    response shape (HTML) is unchanged for curl users and PDF rendering.
     """
     if not settings.share_secret:
         raise AppError("Share links are not configured on this server.", status_code=500)
@@ -530,7 +540,15 @@ async def share_run(request: Request, token: str):
         # Tampered/malformed token → 403 per slice-27 contract.
         raise AppError(str(exc), status_code=403) from exc
     data = _load_run_for_render(task_id)
-    html = render_run_html(**data)
+
+    if request.query_params.get("format") == "json":
+        # Whitelist — mirror _load_run_for_render's shape exactly.
+        return JSONResponse(content=data)
+
+    # HTML branch: render_run_html doesn't take `workflow`; strip it rather
+    # than widening the template signature.
+    html_data = {k: v for k, v in data.items() if k != "workflow"}
+    html = render_run_html(**html_data)
     # Tight CSP — only inline styles from our template, no scripts.
     return HTMLResponse(
         content=html,
@@ -548,7 +566,9 @@ async def crew_history_pdf(request: Request, task_id: str):
     also feeds SSE subscribers and concurrent requests.
     """
     data = _load_run_for_render(task_id)
-    pdf_bytes = await asyncio.to_thread(render_run_pdf, **data)
+    # render_run_pdf wraps render_run_html — neither takes `workflow`.
+    pdf_data = {k: v for k, v in data.items() if k != "workflow"}
+    pdf_bytes = await asyncio.to_thread(render_run_pdf, **pdf_data)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
